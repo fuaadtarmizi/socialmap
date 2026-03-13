@@ -5,7 +5,9 @@
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
       "Bash(npm run:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(del \"C:\\\\Users\\\\User\\\\OneDrive\\\\Desktop\\\\social maps\\\\socialmapApp\\\\src\\\\App.tsx\")",
+      "Bash(cd \"C:\\\\Users\\\\User\\\\OneDrive\\\\Desktop\\\\social maps\\\\socialmapApp\" && npm uninstall react-markdown 2>&1)"
     ]
   }
 }

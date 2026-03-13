@@ -62,21 +62,21 @@ body {
   border: 1px solid #e2e8f0 !important;
 }
 
-.google-popup .leaflet-popup-content-wrapper {
+.sm-popup .leaflet-popup-content-wrapper {
   padding: 0;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0,0,0,0.2);
 }
-.google-popup .leaflet-popup-content {
+.sm-popup .leaflet-popup-content {
   margin: 0;
   width: 300px !important;
 }
-.google-popup .leaflet-popup-tip-container {
+.sm-popup .leaflet-popup-tip-container {
   display: none;
 }
 
-.google-card {
+.sm-card {
   font-family: 'Inter', sans-serif;
   color: #3c4043;
 }

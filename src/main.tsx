@@ -449,7 +449,7 @@ const App = () => {
         </div>
       `;
 
-      const popup = new maplibregl.Popup({ className: 'google-popup', offset: [0, -50], closeButton: true, maxWidth: '380px' })
+      const popup = new maplibregl.Popup({ className: 'sm-popup', offset: [0, -50], closeButton: true, maxWidth: '380px' })
         .setHTML(cardHtml);
       marker.setPopup(popup);
 
@@ -1035,7 +1035,7 @@ const App = () => {
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        .google-popup .maplibregl-popup-content {
+        .sm-popup .maplibregl-popup-content {
           padding: 0;
           border-radius: 16px;
           overflow: hidden;
@@ -1044,15 +1044,15 @@ const App = () => {
           width: 380px;
         }
         @media (max-width: 640px) {
-          .google-popup .maplibregl-popup-content { width: 300px; }
+          .sm-popup .maplibregl-popup-content { width: 300px; }
         }
-        .google-popup .maplibregl-popup-tip { display: none; }
-        .google-popup .maplibregl-popup-close-button {
+        .sm-popup .maplibregl-popup-tip { display: none; }
+        .sm-popup .maplibregl-popup-close-button {
           color: #777;
           padding: 12px;
           font-size: 20px;
         }
-        .google-popup .maplibregl-popup-close-button:hover {
+        .sm-popup .maplibregl-popup-close-button:hover {
           color: white;
           background: none;
         }
@@ -1302,7 +1302,7 @@ const App = () => {
           border-radius: 8px;
         }
         
-        .google-card {
+        .sm-card {
           font-family: 'Inter', sans-serif;
           color: #3c4043;
         }
@@ -1387,7 +1387,7 @@ const App = () => {
         .saved-marker-icon { background: none; border: none; }
         .discovery-marker-standard { background: none; border: none; pointer-events: auto !important; }
 
-        .google-style-pin {
+        .sm-pin {
           display: flex;
           align-items: center;
           gap: 4px;
