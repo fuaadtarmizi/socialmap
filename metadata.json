@@ -1,0 +1,7 @@
+{
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "name": "Lumina Maps",
+  "description": "Map explorer for pinning and discovering locations."
+}
