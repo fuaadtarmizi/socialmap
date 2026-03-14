@@ -1,7 +1,5 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -10,12 +8,29 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
-const JWT_SECRET = "lumina-secret-key-12345";
+
+const SUPABASE_URL = 'https://zqmqxhmbakukcgptfrsv.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpxbXF4aG1iYWt1a2NncHRmcnN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyOTEyNjcsImV4cCI6MjA4ODg2NzI2N30.DHYIP0uXynql_NH3r9shPx_01etmzfbNPf-a9yedpSs';
 
 app.use(express.json({ limit: '10mb' }));
 
-// In-memory stores
-const users: any[] = [];
+// Verify a Supabase access token and return the user, or null
+async function getSupabaseUser(token: string): Promise<{ id: string; email: string; username: string } | null> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+    });
+    if (!res.ok) return null;
+    const user = await res.json();
+    const username = user.user_metadata?.username || user.email?.split('@')[0] || 'User';
+    return { id: user.id, email: user.email, username };
+  } catch {
+    return null;
+  }
+}
 
 interface Comment {
   id: string;
@@ -119,55 +134,23 @@ for (let i = 4; i <= 10; i++) {
   });
 }
 
-// Auth helper
-function getAuthUserId(req: any): string | null {
+// Auth helper — extracts and verifies the Supabase token from the request
+async function getAuthUser(req: any): Promise<{ id: string; email: string; username: string } | null> {
   const authHeader = req.headers.authorization;
   if (!authHeader) return null;
   const token = authHeader.split(' ')[1];
-  try {
-    const decoded: any = jwt.verify(token, JWT_SECRET);
-    return decoded.id;
-  } catch {
-    return null;
-  }
+  return getSupabaseUser(token);
 }
 
 // ── Auth routes ───────────────────────────────────────────────────────────────
 
-app.post("/api/register", async (req, res) => {
-  const { username, password, email } = req.body;
-  if (users.find(u => u.username === username || u.email === email)) {
-    return res.status(400).json({ message: "User already exists" });
-  }
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const newUser = { id: Date.now().toString(), username, email, password: hashedPassword };
-  users.push(newUser);
-  const token = jwt.sign({ id: newUser.id, username: newUser.username }, JWT_SECRET, { expiresIn: "7d" });
-  res.json({ token, user: { id: newUser.id, username: newUser.username, email: newUser.email } });
-});
-
-app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body;
-  const user = users.find(u => u.username === username);
-  if (!user || !(await bcrypt.compare(password, user.password))) {
-    return res.status(401).json({ message: "Invalid credentials" });
-  }
-  const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: "7d" });
-  res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
-});
-
-app.get("/api/me", (req, res) => {
+app.get("/api/me", async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ message: "No token" });
   const token = authHeader.split(" ")[1];
-  try {
-    const decoded: any = jwt.verify(token, JWT_SECRET);
-    const user = users.find(u => u.id === decoded.id);
-    if (!user) return res.status(404).json({ message: "User not found" });
-    res.json({ user: { id: user.id, username: user.username, email: user.email } });
-  } catch {
-    res.status(401).json({ message: "Invalid token" });
-  }
+  const user = await getSupabaseUser(token);
+  if (!user) return res.status(401).json({ message: "Invalid token" });
+  res.json({ user });
 });
 
 // ── Posts routes ──────────────────────────────────────────────────────────────
@@ -178,16 +161,14 @@ app.get("/api/posts", (_req, res) => {
 });
 
 // POST create post
-app.post("/api/posts", (req, res) => {
-  const userId = getAuthUserId(req);
-  if (!userId) return res.status(401).json({ message: "Unauthorized" });
-  const user = users.find(u => u.id === userId);
-  if (!user) return res.status(404).json({ message: "User not found" });
+app.post("/api/posts", async (req, res) => {
+  const user = await getAuthUser(req);
+  if (!user) return res.status(401).json({ message: "Unauthorized" });
 
   const { name, description, address, lat, lng, images } = req.body;
   const newPost: Post = {
     id: Date.now().toString(),
-    userId,
+    userId: user.id,
     username: user.username,
     avatar: `https://i.pravatar.cc/150?u=${user.username}`,
     name: name || address || 'Untitled',
@@ -206,15 +187,15 @@ app.post("/api/posts", (req, res) => {
 });
 
 // POST toggle like
-app.post("/api/posts/:id/like", (req, res) => {
-  const userId = getAuthUserId(req);
-  if (!userId) return res.status(401).json({ message: "Unauthorized" });
+app.post("/api/posts/:id/like", async (req, res) => {
+  const user = await getAuthUser(req);
+  if (!user) return res.status(401).json({ message: "Unauthorized" });
   const post = posts.find(p => p.id === req.params.id);
   if (!post) return res.status(404).json({ message: "Post not found" });
 
-  const idx = post.likedBy.indexOf(userId);
+  const idx = post.likedBy.indexOf(user.id);
   if (idx === -1) {
-    post.likedBy.push(userId);
+    post.likedBy.push(user.id);
   } else {
     post.likedBy.splice(idx, 1);
   }
@@ -229,11 +210,9 @@ app.get("/api/posts/:id/comments", (req, res) => {
 });
 
 // POST add comment
-app.post("/api/posts/:id/comments", (req, res) => {
-  const userId = getAuthUserId(req);
-  if (!userId) return res.status(401).json({ message: "Unauthorized" });
-  const user = users.find(u => u.id === userId);
-  if (!user) return res.status(404).json({ message: "User not found" });
+app.post("/api/posts/:id/comments", async (req, res) => {
+  const user = await getAuthUser(req);
+  if (!user) return res.status(401).json({ message: "Unauthorized" });
   const post = posts.find(p => p.id === req.params.id);
   if (!post) return res.status(404).json({ message: "Post not found" });
 
@@ -242,7 +221,7 @@ app.post("/api/posts/:id/comments", (req, res) => {
 
   const newComment: Comment = {
     id: Date.now().toString(),
-    userId,
+    userId: user.id,
     username: user.username,
     text: text.trim(),
     createdAt: new Date().toISOString()

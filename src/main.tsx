@@ -6,6 +6,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { FormSection } from './components/FormSection';
 import { Chat } from './pages/Chat';
 import { Profile } from './pages/Profile';
+import { Login } from './api/Login';
+import { Signup } from './api/Signup';
 import { Home, Send, Plus, Bell, User, MoreHorizontal, Pin, Heart, MessageCircle, Repeat, Share, MapPin } from 'lucide-react';
 
 /**
@@ -82,9 +84,8 @@ const MAPTILER_STYLE = 'https://api.maptiler.com/maps/streets-v4/style.json?key=
 const App = () => {
   const [user, setUser] = useState<{ id: string; username: string; email: string } | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('lumina_token'));
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authLoading, setAuthLoading] = useState(true);
-  const [authError, setAuthError] = useState('');
+  const [authPage, setAuthPage] = useState<'login' | 'signup'>('login');
 
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -597,32 +598,9 @@ const App = () => {
     setFormImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError('');
-    const form = e.target as HTMLFormElement;
-    const username = (form.elements.namedItem('username') as HTMLInputElement).value;
-    const password = (form.elements.namedItem('password') as HTMLInputElement).value;
-    const email = authMode === 'register' ? (form.elements.namedItem('email') as HTMLInputElement).value : '';
-
-    try {
-      const endpoint = authMode === 'login' ? '/api/login' : '/api/register';
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, email })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        localStorage.setItem('lumina_token', data.token);
-        setToken(data.token);
-        setUser(data.user);
-      } else {
-        setAuthError(data.message || 'Authentication failed');
-      }
-    } catch (err) {
-      setAuthError('Network error. Please try again.');
-    }
+  const handleAuthSuccess = (userData: { id: string; username: string; email: string }, newToken: string) => {
+    setToken(newToken);
+    setUser(userData);
   };
 
   const handleLogout = () => {
@@ -646,66 +624,10 @@ const App = () => {
   }
 
   if (!user) {
-    return (
-      <div className="h-screen w-screen bg-[#101010] flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-md space-y-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-white mb-2">Lumina</h1>
-            <p className="text-white/40">Connect with your local community</p>
-          </div>
-
-          <form onSubmit={handleAuth} className="space-y-4">
-            {authMode === 'register' && (
-              <div>
-                <input
-                  name="email"
-                  type="email"
-                  placeholder="Email"
-                  required
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                />
-              </div>
-            )}
-            <div>
-              <input
-                name="username"
-                type="text"
-                placeholder="Username"
-                required
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              />
-            </div>
-            <div>
-              <input
-                name="password"
-                type="password"
-                placeholder="Password"
-                required
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              />
-            </div>
-
-            {authError && <p className="text-red-500 text-sm text-center">{authError}</p>}
-
-            <button
-              type="submit"
-              className="w-full bg-white text-black font-bold py-3 rounded-xl hover:bg-white/90 transition-colors"
-            >
-              {authMode === 'login' ? 'Log in' : 'Sign up'}
-            </button>
-          </form>
-
-          <div className="text-center">
-            <button
-              onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
-              className="text-white/40 text-sm hover:text-white transition-colors"
-            >
-              {authMode === 'login' ? "Don't have an account? Sign up" : "Already have an account? Log in"}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    if (authPage === 'signup') {
+      return <Signup onSignup={handleAuthSuccess} onGoLogin={() => setAuthPage('login')} />;
+    }
+    return <Login onLogin={handleAuthSuccess} onGoSignup={() => setAuthPage('signup')} />;
   }
 
   return (
