@@ -9,6 +9,7 @@ import { Profile } from './pages/Profile';
 import { Login } from './api/Login';
 import { Signup } from './api/Signup';
 import { Home, Send, Plus, Bell, User, MoreHorizontal, Pin, Heart, MessageCircle, Repeat, Share, MapPin } from 'lucide-react';
+import { supabase } from './lib/supabase';
 
 /**
  * Social Map - Enhanced with Image Support
@@ -264,6 +265,17 @@ const App = () => {
     };
     checkAuth();
   }, [token]);
+
+  // Fetch all posts from server when user logs in
+  useEffect(() => {
+    if (!user || !token) return;
+    fetch('/api/posts', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then((data: SavedPlace[]) => setSavedPlaces(data.map(p => ({ ...p, viewedBy: p.viewedBy || [] }))))
+      .catch(err => console.error('Failed to load posts', err));
+  }, [user]);
 
   // Initialize Map
   useEffect(() => {
@@ -546,37 +558,58 @@ const App = () => {
     setIsFormOpen(false);
   };
 
-  const handleSavePlace = () => {
+  // handleSavePlace function (after post)
+  const handleSavePlace = async () => {
     if (!previewCoords) {
       alert("Please locate the address first.");
       return;
     }
+    if (!user) {
+      alert("You must be logged in to save a place.");
+      return;
+    }
 
-    const newPlace: SavedPlace = {
-      id: Date.now().toString(),
-      lat: previewCoords.lat,
-      lng: previewCoords.lng,
-      name: formAddress, // Use address as name since headline is removed
-      description: formDescription,
-      address: formAddress,
-      images: formImages,
-      likedBy: [],
-      comments: [],
-      viewedBy: [],
-      username: username,
-      avatar: `https://i.pravatar.cc/150?u=${username}`
-    };
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .insert([
+          {
+            user_id: user.id,
+            username: user.username || user.email || 'user',
+            avatar: '',
+            name: formAddress,
+            description: formDescription,
+            address: formAddress,
+            lat: previewCoords.lat,
+            lng: previewCoords.lng,
+            images: formImages,
+            liked_by: [],
+            views: 0,
+          },
+        ])
+        .select()
+        .single();
 
-    setSavedPlaces([...savedPlaces, newPlace]);
-    
-    setFormAddress('');
-    setFormDescription('');
-    setFormImages([]);
-    setUsername('WanderlustLara');
-    setPreviewCoords(null);
-    setIsFormOpen(false);
-    alert("Place saved successfully!");
+      if (error) {
+        console.error(error);
+        alert('Failed to save: ' + error.message);
+        return;
+      }
+
+      setSavedPlaces(prev => [{ ...data, viewedBy: [] }, ...prev]);
+      setFormAddress('');
+      setFormDescription('');
+      setFormImages([]);
+      setPreviewCoords(null);
+      setIsFormOpen(false);
+      alert("Place saved successfully!");
+    } catch (err) {
+      console.error('Save place error:', err);
+      alert("Network error. Please try again.");
+    }
   };
+
+  
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
