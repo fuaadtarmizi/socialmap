@@ -26,6 +26,7 @@ interface Comment {
 
 interface SavedPlace {
   id: string;
+  userId?: string;
   lat: number;
   lng: number;
   name: string;
@@ -81,6 +82,23 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 const MAPTILER_STYLE = 'https://api.maptiler.com/maps/streets-v4/style.json?key=uClWUmJSFRqvN0ScbvIw';
+
+// Convert a raw Supabase posts row (snake_case) → SavedPlace (camelCase)
+const rowToPlace = (row: any): SavedPlace => ({
+  id: row.id,
+  userId: row.user_id,
+  username: row.username,
+  avatar: row.avatar || `https://i.pravatar.cc/150?u=${row.username}`,
+  name: row.name || '',
+  description: row.description || '',
+  address: row.address || '',
+  lat: row.lat,
+  lng: row.lng,
+  images: row.images || [],
+  likedBy: row.liked_by || [],
+  comments: [],
+  viewedBy: [],
+});
 
 const App = () => {
   const [user, setUser] = useState<{ id: string; username: string; email: string } | null>(null);
@@ -239,42 +257,76 @@ const App = () => {
     }
   };
 
-  // Auth Check
+  // Auth: restore session on mount, keep in sync with Supabase
   useEffect(() => {
-    const checkAuth = async () => {
-      if (!token) {
-        setAuthLoading(false);
-        return;
+    // Restore existing session (survives page refresh)
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) console.error('getSession error:', error);
+      if (session) {
+        const u = session.user;
+        const username = u.user_metadata?.username || u.email?.split('@')[0] || 'User';
+        setUser({ id: u.id, username, email: u.email! });
+        setToken(session.access_token);
+        localStorage.setItem('lumina_token', session.access_token);
       }
-      try {
-        const res = await fetch('/api/me', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data.user);
-        } else {
-          localStorage.removeItem('lumina_token');
-          setToken(null);
-        }
-      } catch (err) {
-        console.error("Auth check failed", err);
-      } finally {
-        setAuthLoading(false);
-      }
-    };
-    checkAuth();
-  }, [token]);
+      setAuthLoading(false);
+    });
 
-  // Fetch all posts from server when user logs in
+    // Stay in sync: login, logout, token refresh
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        const u = session.user;
+        const username = u.user_metadata?.username || u.email?.split('@')[0] || 'User';
+        setUser({ id: u.id, username, email: u.email! });
+        setToken(session.access_token);
+        localStorage.setItem('lumina_token', session.access_token);
+      } else {
+        setUser(null);
+        setToken(null);
+        localStorage.removeItem('lumina_token');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Load posts + realtime subscription
   useEffect(() => {
-    if (!user || !token) return;
-    fetch('/api/posts', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(r => r.json())
-      .then((data: SavedPlace[]) => setSavedPlaces(data.map(p => ({ ...p, viewedBy: p.viewedBy || [] }))))
-      .catch(err => console.error('Failed to load posts', err));
+    if (!user) return;
+
+    // Initial fetch
+    supabase
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) { console.error('Failed to load posts:', error); return; }
+        setSavedPlaces((data || []).map(rowToPlace));
+      });
+
+    // Realtime: new post from any user appears instantly
+    const channel = supabase
+      .channel('public:posts')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'posts' },
+        (payload) => {
+          console.log('Realtime INSERT:', payload.new);
+          const newPlace = rowToPlace(payload.new);
+          setSavedPlaces(prev => {
+            if (prev.find(p => p.id === newPlace.id)) return prev; // skip own optimistic post
+            return [newPlace, ...prev];
+          });
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') console.log('Realtime subscribed to posts');
+        if (status === 'CHANNEL_ERROR') console.error('Realtime channel error');
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   // Initialize Map
@@ -591,12 +643,13 @@ const App = () => {
         .single();
 
       if (error) {
-        console.error(error);
+        console.error('Post insert error:', error);
         alert('Failed to save: ' + error.message);
         return;
       }
 
-      setSavedPlaces(prev => [{ ...data, viewedBy: [] }, ...prev]);
+      console.log('Post inserted:', data);
+      setSavedPlaces(prev => [rowToPlace(data), ...prev]);
       setFormAddress('');
       setFormDescription('');
       setFormImages([]);
@@ -637,6 +690,7 @@ const App = () => {
   };
 
   const handleLogout = () => {
+    supabase.auth.signOut();
     localStorage.removeItem('lumina_token');
     setToken(null);
     setUser(null);
