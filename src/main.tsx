@@ -11,7 +11,7 @@ import { Signup } from './api/Signup';
 import { Home, Send, Plus, Bell, User, MoreHorizontal, Pin, Heart, MessageCircle, Repeat, Share, MapPin } from 'lucide-react';
 
 /**
- * Lumina Maps - Enhanced with Image Support
+ * Social Map - Enhanced with Image Support
  * Users can now add 3 images to each place they save.
  */
 

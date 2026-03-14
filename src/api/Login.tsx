@@ -40,7 +40,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onGoSignup }) => {
     <div className="h-screen w-screen bg-[#101010] flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-white mb-2">Lumina</h1>
+          <h1 className="text-4xl font-bold text-white mb-2">Social Map</h1>
           <p className="text-white/40">Connect with your local community</p>
         </div>
 
