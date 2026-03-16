@@ -11,6 +11,9 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
       },
       plugins: [react(), tailwindcss()],
+      optimizeDeps: {
+        include: ['mapbox-gl'],
+      },
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
