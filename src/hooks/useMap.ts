@@ -79,12 +79,33 @@ export const useMap = ({
         container: mapContainer,
         style: MAPBOX_STYLE,
         center: [101.5556, 3.4083],
-        zoom: 10,
-        pitch: 30,
+        zoom: 16,
+        pitch: 20,
         bearing: 0,
         minZoom: 12,
         attributionControl: false,
       });
+
+      mapRef.current.on("zoom", () => {
+    const map = mapRef.current!
+    const zoom = map.getZoom()
+
+    const minZoom = 12
+    const maxZoom = 16
+
+    const minPitch = 10
+    const maxPitch = 40
+
+    // normalize (0 → 1)
+    let t = (zoom - minZoom) / (maxZoom - minZoom)
+    t = Math.max(0, Math.min(1, t))
+
+    // interpolate pitch
+    const pitch = minPitch + (maxPitch - minPitch) * t
+
+    map.jumpTo({ pitch })
+  });
+
 
      
 
@@ -128,7 +149,12 @@ export const useMap = ({
             (pos) => {
               const { latitude, longitude } = pos.coords;
               setLocation({ lat: latitude, lng: longitude });
-              mapRef.current!.flyTo({ center: [longitude, latitude], zoom: 16, pitch: 65, bearing: -20 });
+              mapRef.current!.flyTo({ 
+                center: [longitude, latitude], 
+                zoom: 16, 
+                pitch: 50, 
+                bearing: 0 
+              });
               const userEl = document.createElement('div');
               userEl.style.cssText = 'width:16px;height:16px;background:#3b82f6;border:2px solid white;border-radius:50%;box-shadow:0 0 0 4px rgba(59,130,246,0.3)';
               new mapboxgl.Marker({ element: userEl })
