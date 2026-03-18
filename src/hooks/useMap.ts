@@ -80,31 +80,28 @@ export const useMap = ({
         style: MAPBOX_STYLE,
         center: [101.5556, 3.4083],
         zoom: 16,
-        pitch: 20,
+        pitch: 30,
         bearing: 0,
-        minZoom: 12,
+        minZoom: 10,
+        maxZoom: 18,
         attributionControl: false,
       });
 
-      mapRef.current.on("zoom", () => {
-    const map = mapRef.current!
-    const zoom = map.getZoom()
+      const updatePitch = () => {
+        const map = mapRef.current!
+        const zoom = map.getZoom()
+        const t = Math.max(0, Math.min(1, (zoom - 12) / (16 - 12)))
+        const pitch = 15 + 20 * t
 
-    const minZoom = 12
-    const maxZoom = 16
+        map.easeTo({
+          pitch,
+          duration: 2000,
+          easing: (t) => t
+        })
+      }
 
-    const minPitch = 10
-    const maxPitch = 40
+      mapRef.current.on("zoomend", updatePitch)
 
-    // normalize (0 → 1)
-    let t = (zoom - minZoom) / (maxZoom - minZoom)
-    t = Math.max(0, Math.min(1, t))
-
-    // interpolate pitch
-    const pitch = minPitch + (maxPitch - minPitch) * t
-
-    map.jumpTo({ pitch })
-  });
 
 
      
@@ -173,6 +170,11 @@ export const useMap = ({
     };
   }, [user]);
 
+
+
+
+
+  
   // Update Preview Marker
   useEffect(() => {
     if (!mapRef.current) return;
