@@ -1,45 +1,29 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, MoreHorizontal, Settings, LogOut, UserPlus, Send, Heart, MapPin, Trash2, Archive, Camera } from 'lucide-react';
 import { SavedPlace } from '../components/PostingCard';
-
-interface User {
-  id: string;
-  username: string;
-  email?: string;
-}
+import { useProfile } from '../hooks/useProfile';
+import { AuthUser } from '../hooks/useAuth';
 
 interface ProfileProps {
-  user: User;
+  user: AuthUser;
   onLogout: () => void;
   isOwn?: boolean;
   followerCount?: number;
   savedPlaces?: SavedPlace[];
   onDeletePlace?: (id: string) => void;
+  onPhotoChange?: (url: string) => void;
 }
 
-export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, followerCount = 74, savedPlaces = [], onDeletePlace }) => {
+export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, followerCount = 74, savedPlaces = [], onDeletePlace, onPhotoChange }) => {
   const myPosts = savedPlaces.filter(p => p.userId === user.id);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [postMenuOpenId, setPostMenuOpenId] = useState<string | null>(null);
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
-  const [displayUsername] = useState(user.username);
-  const [displayBio] = useState('Software Developer | Lead of PetalCode Labs\ni do coding as a hobby 🧘‍♀️');
-  const photoKey = `profile_photo_${user.id}`;
-  const [profilePhoto, setProfilePhoto] = useState<string | null>(() => localStorage.getItem(photoKey));
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setProfilePhoto(dataUrl);
-      localStorage.setItem(photoKey, dataUrl);
-    };
-    reader.readAsDataURL(file);
-  };
+  const { profileData, loading, uploadError, updatePhoto } = useProfile(user);
+  const { displayName, bio, avatarUrl: profilePhoto } = profileData;
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -51,10 +35,16 @@ export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = await updatePhoto(file);
+    if (url) onPhotoChange?.(url);
+  };
+
   return (
     <div className="absolute inset-0 z-50 bg-[#101010] flex flex-col animate-in fade-in duration-300">
      <div className="flex justify-end py-2">
-        {/* More button */}
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen(v => !v)}
@@ -87,24 +77,34 @@ export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, 
       <div className="flex-1 overflow-y-auto no-scrollbar">
         <div className="p-4">
             {/* Header */}
-            <div className="flex  items-center mb-4">
+            <div className="flex items-center mb-4">
                 <div className="flex items-center gap-2">
-                    <div
-                      className="relative w-16 h-16 rounded-full border border-white/10 bg-white/10 flex items-center justify-center overflow-hidden group"
-                      onClick={() => isOwn && fileInputRef.current?.click()}
-                      style={{ cursor: isOwn ? 'pointer' : 'default' }}
-                    >
-                      {profilePhoto ? (
-                        <img src={profilePhoto} className="w-full h-full object-cover" />
-                      ) : (
-                        <svg viewBox="0 0 24 24" width="32" height="32" fill="white" opacity="0.5">
-                          <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-                        </svg>
-                      )}
+                    <div className="relative w-16 h-16">
+                      <div
+                        className="w-16 h-16 rounded-full border border-white/10 bg-white/10 flex items-center justify-center overflow-hidden"
+                        onClick={() => isOwn && !loading && fileInputRef.current?.click()}
+                        style={{ cursor: isOwn ? 'pointer' : 'default' }}
+                      >
+                        {profilePhoto ? (
+                          <img src={profilePhoto} className="w-full h-full object-cover" />
+                        ) : (
+                          <svg viewBox="0 0 24 24" width="32" height="32" fill="white" opacity="0.5">
+                            <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+                          </svg>
+                        )}
+                      </div>
                       {isOwn && (
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Camera size={18} className="text-white" />
-                        </div>
+                        <button
+                          onClick={() => !loading && fileInputRef.current?.click()}
+                          className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-white flex items-center justify-center shadow-md border border-white/20"
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {loading ? (
+                            <div className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Camera size={12} className="text-black" />
+                          )}
+                        </button>
                       )}
                     </div>
                     <input
@@ -116,17 +116,22 @@ export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, 
                     />
                 </div>
                 <div className="px-5">
-                    <h1 className="text-2xl font-bold text-white">{displayUsername}</h1>
+                  {uploadError && (
+                    <p className="text-red-400 text-xs mb-1">{uploadError}</p>
+                  )}
+                    <h1 className="text-2xl font-bold text-white">{displayName || user.username}</h1>
                     <div className="flex items-center gap-1 mt-1">
-                        <span className="text-white text-sm">{displayUsername.toLowerCase()}</span>
+                        <span className="text-white text-sm">{user.username.toLowerCase()}</span>
                     </div>
                 </div>
             </div>
 
           {/* Bio */}
-          <div className="text-white text-sm mb-4 leading-relaxed">
-            {displayBio.split('\n').map((line, i) => <p key={i}>{line}</p>)}
-          </div>
+          {bio ? (
+            <div className="text-white text-sm mb-4 leading-relaxed">
+              {bio.split('\n').map((line, i) => <p key={i}>{line}</p>)}
+            </div>
+          ) : null}
 
           {/* Followers */}
           <div className="flex items-center justify-between mb-6">
@@ -194,8 +199,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, 
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-white text-sm">{user.username}</span>
-                      {/* 3-dot menu */}
+                      <span className="font-bold text-white text-sm">{displayName || user.username}</span>
                       <div className="relative">
                         <button
                           onClick={() => setPostMenuOpenId(postMenuOpenId === place.id ? null : place.id)}

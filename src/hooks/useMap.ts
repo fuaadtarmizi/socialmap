@@ -37,6 +37,7 @@ interface UseMapParams {
   setFormAddress: (v: string) => void;
   handleLike: (placeId: string) => void;
   onOpenComments: (placeId: string) => void;
+  profilePhoto?: string | null;
 }
 
 export const useMap = ({
@@ -48,6 +49,7 @@ export const useMap = ({
   setFormAddress,
   handleLike,
   onOpenComments,
+  profilePhoto,
 }: UseMapParams) => {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const savedMarkersRef = useRef<mapboxgl.Marker[]>([]);
@@ -188,8 +190,6 @@ export const useMap = ({
     savedMarkersRef.current.forEach(m => m.remove());
     savedMarkersRef.current = [];
 
-    const profilePhoto = user ? localStorage.getItem(`profile_photo_${user.id}`) : null;
-
     savedPlaces.forEach(place => {
       const isPointed = place.id === pointedPlaceId;
       const avatarSrc = (place.userId === user?.id && profilePhoto) ? profilePhoto : (place.avatar || '');
@@ -217,7 +217,7 @@ export const useMap = ({
 
       savedMarkersRef.current.push(marker);
     });
-  }, [savedPlaces, pointedPlaceId]);
+  }, [savedPlaces, pointedPlaceId, profilePhoto]);
 
   return { mapRef, location, pointedPlaceId, cardPos };
 };

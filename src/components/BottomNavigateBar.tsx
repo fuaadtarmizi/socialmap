@@ -17,7 +17,7 @@ export const BottomNavigateBar: React.FC<BottomNavigateBarProps> = ({
   return (
     <div className="fixed flex justify-center w-full bottom-0 z-[100]   ">
       <div className="flex w-full lg:w-1/2 pointer-events-none">
-        <div className="relative pb-4 w-full lg:rounded-t-md bg-black backdrop-blur-xl border border-black  px-6 py-2 pointer-events-auto flex items-center justify-between">
+        <div className="relative pb-3  w-full lg:rounded-t-md bg-black backdrop-blur-xl border border-black  px-6 py-2 pointer-events-auto flex items-center justify-between">
           <button
             onClick={() => setActiveTab('near')}
             className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'near' ? 'text-white scale-110' : 'text-slate-500'}`}

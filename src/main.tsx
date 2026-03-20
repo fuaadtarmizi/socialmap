@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { FormSection } from './components/FormSection';
@@ -33,7 +33,22 @@ import { SplashScreen } from './components/SplashScreen';
 const App = () => {
   const { user, token, authLoading, handleAuthSuccess, handleLogout } = useAuth();
   const [authPage, setAuthPage] = useState<'login' | 'signup'>('login');
-  const profilePhoto = user ? localStorage.getItem(`profile_photo_${user.id}`) : null;
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(
+    () => {
+      const stored = localStorage.getItem('lumina_token');
+      if (!stored) return null;
+      // Will be updated once user loads
+      return null;
+    }
+  );
+
+  // Sync profilePhoto from localStorage once user is known
+  useEffect(() => {
+    if (user) {
+      const cached = localStorage.getItem(`profile_photo_${user.id}`);
+      if (cached) setProfilePhoto(cached);
+    }
+  }, [user?.id]);
 
   // Form State
   const [formAddress, setFormAddress] = useState('');
@@ -92,6 +107,7 @@ const App = () => {
     setFormAddress,
     handleLike,
     onOpenComments: (placeId) => setCommentingOnPlaceRef.current?.(placeId),
+    profilePhoto,
   });
 
   const { locating, handleLocate } = useGeocoding({
@@ -222,7 +238,7 @@ const App = () => {
       {activeTab === 'inbox' && <Chat currentUsername={username} profilePhoto={profilePhoto} />}
 
       {/* PROFILE PAGE OVERLAY */}
-      {activeTab === 'profile' && <Profile user={user} onLogout={handleLogout} followerCount={userFollowers[user?.username || ''] ?? 74} savedPlaces={savedPlaces} onDeletePlace={handleDeletePlace} />}
+      {activeTab === 'profile' && <Profile user={user} onLogout={handleLogout} followerCount={userFollowers[user?.username || ''] ?? 74} savedPlaces={savedPlaces} onDeletePlace={handleDeletePlace} onPhotoChange={setProfilePhoto} />}
 
       {/* FLOATING CARD FOR POINTED PLACE */}
       <FloatingCard
