@@ -24,9 +24,10 @@ const INITIAL_CONVERSATIONS: Conversation[] = [];
 
 interface ChatProps {
   currentUsername?: string;
+  profilePhoto?: string | null;
 }
 
-export const Chat: React.FC<ChatProps> = ({ currentUsername = 'You' }) => {
+export const Chat: React.FC<ChatProps> = ({ currentUsername = 'You', profilePhoto }) => {
   const [conversations, setConversations] = useState<Conversation[]>(INITIAL_CONVERSATIONS);
   const [openId, setOpenId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -93,7 +94,13 @@ export const Chat: React.FC<ChatProps> = ({ currentUsername = 'You' }) => {
 
         {/* Input */}
         <div className="px-4 py-3 border-t border-white/10 flex items-center gap-3 bg-[#101010]">
-          <img src={`https://i.pravatar.cc/150?u=${currentUsername}`} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+          {profilePhoto ? (
+            <img src={profilePhoto} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="white" opacity="0.5"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+            </div>
+          )}
           <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 py-2 gap-2">
             <input
               type="text"

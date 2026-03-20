@@ -33,6 +33,7 @@ import { SplashScreen } from './components/SplashScreen';
 const App = () => {
   const { user, token, authLoading, handleAuthSuccess, handleLogout } = useAuth();
   const [authPage, setAuthPage] = useState<'login' | 'signup'>('login');
+  const profilePhoto = user ? localStorage.getItem(`profile_photo_${user.id}`) : null;
 
   // Form State
   const [formAddress, setFormAddress] = useState('');
@@ -62,6 +63,7 @@ const App = () => {
     handleSavePlace,
     handleImageUpload,
     removeFormImage,
+    handleDeletePlace,
   } = usePosts({
     user,
     token,
@@ -217,10 +219,10 @@ const App = () => {
       )}
 
       {/* INBOX PAGE OVERLAY */}
-      {activeTab === 'inbox' && <Chat currentUsername={username} />}
+      {activeTab === 'inbox' && <Chat currentUsername={username} profilePhoto={profilePhoto} />}
 
       {/* PROFILE PAGE OVERLAY */}
-      {activeTab === 'profile' && <Profile user={user} onLogout={handleLogout} followerCount={userFollowers[user?.username || ''] ?? 74} />}
+      {activeTab === 'profile' && <Profile user={user} onLogout={handleLogout} followerCount={userFollowers[user?.username || ''] ?? 74} savedPlaces={savedPlaces} onDeletePlace={handleDeletePlace} />}
 
       {/* FLOATING CARD FOR POINTED PLACE */}
       <FloatingCard
@@ -231,6 +233,7 @@ const App = () => {
         savedPlaces={savedPlaces}
         user={user}
         followingSet={followingSet}
+        profilePhoto={profilePhoto}
         handleLike={handleLike}
         handleFollow={handleFollow}
         setActiveTab={setActiveTab}
@@ -254,13 +257,14 @@ const App = () => {
       {isFormOpen && activeTab === 'near' && (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-2 sm:p-4 pointer-events-none">
           <div className="relative w-full  pointer-events-auto">
-            <FormSection 
+            <FormSection
               formAddress={formAddress}
               setFormAddress={setFormAddress}
               formDescription={formDescription}
               setFormDescription={setFormDescription}
               formImages={formImages}
               username={username}
+              profilePhoto={profilePhoto}
               handleLocate={handleLocate}
               locating={locating}
               handleRemovePin={handleRemovePin}

@@ -5,7 +5,7 @@ interface ActivityItem {
   id: number;
   type: 'follow' | 'like' | 'reply' | 'mention';
   user: string;
-  avatar: string;
+  avatar?: string | null;
   time: string;
   content: string;
 }
@@ -53,7 +53,13 @@ export const Activity: React.FC = () => {
           {MOCK_ACTIVITY.map((item) => (
             <div key={item.id} className="p-4 flex gap-3 hover:bg-white/[0.02] transition-colors cursor-pointer">
               <div className="relative flex-shrink-0">
-                <img src={item.avatar} className="w-10 h-10 rounded-full object-cover" />
+                {item.avatar ? (
+                  <img src={item.avatar} className="w-10 h-10 rounded-full object-cover" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="white" opacity="0.5"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                  </div>
+                )}
                 <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-[#101010]
                   ${item.type === 'follow' ? 'bg-indigo-500' :
                     item.type === 'like' ? 'bg-pink-500' :

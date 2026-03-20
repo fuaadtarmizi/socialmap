@@ -42,7 +42,7 @@ export const useActivity = () => {
       pushActivity({
         type: 'follow',
         user: targetUsername,
-        avatar: `https://i.pravatar.cc/150?u=${targetUsername}`,
+        avatar: null,
         content: 'started following you',
       });
     }

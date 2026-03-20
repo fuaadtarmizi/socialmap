@@ -4,19 +4,22 @@ import { SavedPlace, formatCount } from './PostingCard';
 // ─── HTML Templates ───────────────────────────────────────────────────────────
 // Edit these functions to change how markers and popups look on the map.
 
-export function previewMarkerHtml(username: string): string {
+const GENERIC_AVATAR_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='12' fill='%231a1a1a'/%3E%3Cpath fill='rgba(255%2C255%2C255%2C0.4)' d='M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z'/%3E%3C/svg%3E`;
+
+export function previewMarkerHtml(_username: string): string {
   return `
     <div class="avatar-pin-container" style="animation: bounce 10s infinite alternate; transform-origin: bottom center;">
-      <img src="https://i.pravatar.cc/150?u=${username}" class="avatar-pin-img" style="border-color: #ea4335" />
+      <img src="${GENERIC_AVATAR_SVG}" class="avatar-pin-img" style="border-color: #ea4335" />
       <div class="avatar-pin-tip" style="background-color: #ea4335"></div>
     </div>
   `;
 }
 
-export function placeMarkerHtml(avatarSrc: string, isPointed: boolean): string {
+export function placeMarkerHtml(avatarSrc: string | null | undefined, isPointed: boolean): string {
+  const src = avatarSrc || GENERIC_AVATAR_SVG;
   return `
     <div class="avatar-pin-container" style="transition: all 0.3s ease; transform: ${isPointed ? 'scale(1.2)' : 'scale(1)'}; animation: ${isPointed ? 'pin-bounce 0.8s infinite' : 'none'}">
-      <img src="${avatarSrc}" class="avatar-pin-img" style="border-color: ${isPointed ? '#3b82f6' : 'white'}" />
+      <img src="${src}" class="avatar-pin-img" style="border-color: ${isPointed ? '#3b82f6' : 'white'}" />
       <div class="avatar-pin-tip" style="background-color: ${isPointed ? '#3b82f6' : 'white'}"></div>
     </div>
   `;
@@ -24,7 +27,7 @@ export function placeMarkerHtml(avatarSrc: string, isPointed: boolean): string {
 
 export function placePopupHtml(place: SavedPlace): string {
   const mainImage = place.images.length > 0 ? place.images[0] : null;
-  const avatarSrc = place.avatar || `https://i.pravatar.cc/150?u=${place.username}`;
+  const avatarSrc = place.avatar || GENERIC_AVATAR_SVG;
   return `
     <div class="threads-card">
       <div class="threads-left">

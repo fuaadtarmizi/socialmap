@@ -40,6 +40,7 @@ interface PostingCardProps {
   followingSet: Set<string>;
   commentingOnPlace: string | null;
   commentInput: string;
+  profilePhoto?: string | null;
   handleLike: (placeId: string) => void;
   handleFollow: (username: string) => void;
   setActiveTab: (tab: string) => void;
@@ -58,6 +59,7 @@ export const PostingCard: React.FC<PostingCardProps> = ({
   followingSet,
   commentingOnPlace,
   commentInput,
+  profilePhoto,
   handleLike,
   handleFollow,
   setActiveTab,
@@ -69,12 +71,12 @@ export const PostingCard: React.FC<PostingCardProps> = ({
 
   return (
     <div
+      id="floating-posting-card"
       className="fixed z-30 w-[320px] pointer-events-auto animate-in fade-in zoom-in-95 duration-200"
       style={{
         left: cardPos.x,
         top: cardPos.y - 40,
         transform: 'translate(-50%, -100%)',
-        transition: 'left 0.1s ease-out, top 0.1s ease-out',
       }}
     >
       <div className="bg-[#101010] rounded-2xl shadow-2xl overflow-hidden border border-white/10">
@@ -87,11 +89,17 @@ export const PostingCard: React.FC<PostingCardProps> = ({
               <div className="threads-card" style={{ borderRadius: 0 }}>
                 <div className="threads-left">
                   <div className="avatar-container">
-                    <img
-                      src={place.avatar || `https://i.pravatar.cc/150?u=${place.username}`}
-                      className="threads-avatar cursor-pointer"
-                      onClick={() => setActiveTab('profile')}
-                    />
+                    {(() => {
+                      const isOwner = place.userId === user?.id;
+                      const src = isOwner ? (profilePhoto || place.avatar) : place.avatar;
+                      return src ? (
+                        <img src={src} className="threads-avatar cursor-pointer" onClick={() => setActiveTab('profile')} />
+                      ) : (
+                        <div className="threads-avatar cursor-pointer bg-white/10 flex items-center justify-center" onClick={() => setActiveTab('profile')}>
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="white" opacity="0.5"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="threads-line"></div>
                 </div>
@@ -188,10 +196,9 @@ export const PostingCard: React.FC<PostingCardProps> = ({
                     ) : (
                       place.comments.map(c => (
                         <div key={c.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                          <img
-                            src={`https://i.pravatar.cc/150?u=${c.username}`}
-                            style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
-                          />
+                          <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="white" opacity="0.5"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                          </div>
                           <div style={{ flex: 1 }}>
                             <span style={{ color: 'white', fontWeight: 600, fontSize: 12 }}>{c.username} </span>
                             <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>{c.text}</span>
@@ -201,10 +208,13 @@ export const PostingCard: React.FC<PostingCardProps> = ({
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <img
-                      src={`https://i.pravatar.cc/150?u=${user?.username}`}
-                      style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
-                    />
+                    {profilePhoto ? (
+                      <img src={profilePhoto} style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="white" opacity="0.5"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                      </div>
+                    )}
                     <input
                       value={commentInput}
                       onChange={e => setCommentInput(e.target.value)}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { SavedPlace } from '../components/PostingCard';
-import { previewMarkerHtml, placeMarkerHtml, placePopupHtml } from '../components/Map';
+import { previewMarkerHtml, placeMarkerHtml } from '../components/Map';
 import { AuthUser } from './useAuth';
 
 // Replace with your Mapbox public token
@@ -57,6 +57,7 @@ export const useMap = ({
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [pointedPlaceId, setPointedPlaceId] = useState<string | null>(null);
   const [cardPos, setCardPos] = useState<{ x: number; y: number } | null>(null);
+  const pointedPlaceIdRef = useRef<string | null>(null);
 
   useEffect(() => { savedPlacesRef.current = savedPlaces; }, [savedPlaces]);
 
@@ -108,34 +109,17 @@ export const useMap = ({
 
       mapRef.current.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 
-      // Map move listener — find closest place to center
+      // Map move listener — directly update card DOM position every frame (no React re-render lag)
       mapRef.current.on('move', () => {
-        if (!savedPlacesRef.current?.length) return;
-        const center = mapRef.current!.getCenter();
-        let closestId: string | null = null;
-        let minDistance = Infinity;
-
-        savedPlacesRef.current.forEach((place) => {
-          const dist = haversineDistance(center.lat, center.lng, place.lat, place.lng);
-          if (dist < minDistance) { minDistance = dist; closestId = place.id; }
-        });
-
-        if (closestId && minDistance < 300) {
-          setPointedPlaceId(closestId);
-          const place = savedPlacesRef.current.find((p) => p.id === closestId);
-          if (place) {
-            const point = mapRef.current!.project([place.lng, place.lat]);
-            setCardPos({ x: point.x, y: point.y });
-            const viewerId = user?.id || 'guest';
-            if (!place.viewedBy.includes(viewerId)) {
-              setSavedPlaces(prev => prev.map(p =>
-                p.id === closestId ? { ...p, viewedBy: [...p.viewedBy, viewerId] } : p
-              ));
-            }
+        if (!pointedPlaceIdRef.current) return;
+        const place = savedPlacesRef.current.find(p => p.id === pointedPlaceIdRef.current);
+        if (place) {
+          const point = mapRef.current!.project([place.lng, place.lat]);
+          const card = document.getElementById('floating-posting-card');
+          if (card) {
+            card.style.left = `${point.x}px`;
+            card.style.top = `${point.y - 40}px`;
           }
-        } else {
-          setPointedPlaceId(null);
-          setCardPos(null);
         }
       });
 
@@ -204,25 +188,32 @@ export const useMap = ({
     savedMarkersRef.current.forEach(m => m.remove());
     savedMarkersRef.current = [];
 
+    const profilePhoto = user ? localStorage.getItem(`profile_photo_${user.id}`) : null;
+
     savedPlaces.forEach(place => {
       const isPointed = place.id === pointedPlaceId;
+      const avatarSrc = (place.userId === user?.id && profilePhoto) ? profilePhoto : (place.avatar || '');
 
       const el = document.createElement('div');
-      el.innerHTML = placeMarkerHtml(place.avatar || `https://i.pravatar.cc/150?u=${place.username}`, isPointed);
+      el.innerHTML = placeMarkerHtml(avatarSrc, isPointed);
 
       const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([place.lng, place.lat])
         .addTo(mapRef.current!);
 
-      const popup = new mapboxgl.Popup({ className: 'sm-popup', offset: [0, -50], closeButton: true, maxWidth: '380px' })
-        .setHTML(placePopupHtml(place));
-      marker.setPopup(popup);
-
-      let pinned = false;
-      el.addEventListener('mouseenter', () => { if (!popup.isOpen()) marker.togglePopup(); });
-      el.addEventListener('mouseleave', () => { if (popup.isOpen() && !pinned) marker.togglePopup(); });
-      el.addEventListener('click', () => { pinned = true; });
-      popup.on('close', () => { pinned = false; });
+      el.addEventListener('click', () => {
+        const isOpen = pointedPlaceIdRef.current === place.id;
+        if (isOpen) {
+          pointedPlaceIdRef.current = null;
+          setPointedPlaceId(null);
+          setCardPos(null);
+        } else {
+          const point = mapRef.current!.project([place.lng, place.lat]);
+          pointedPlaceIdRef.current = place.id;
+          setPointedPlaceId(place.id);
+          setCardPos({ x: point.x, y: point.y });
+        }
+      });
 
       savedMarkersRef.current.push(marker);
     });

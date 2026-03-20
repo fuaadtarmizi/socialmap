@@ -8,7 +8,7 @@ interface FormSectionProps {
   setFormDescription: (val: string) => void;
   formImages: string[];
   username: string;
-  
+  profilePhoto?: string | null;
   handleLocate: () => void;
   locating: boolean;
   handleRemovePin: () => void;
@@ -25,6 +25,7 @@ export const FormSection: React.FC<FormSectionProps> = ({
   setFormDescription,
   formImages,
   username,
+  profilePhoto,
   handleLocate,
   locating,
   handleRemovePin,
@@ -44,7 +45,7 @@ export const FormSection: React.FC<FormSectionProps> = ({
           >
             Cancel
           </button>
-          <h2 className="text-white text-sm font-bold">New thread</h2>
+          <h2 className="text-white text-sm font-bold">New Event</h2>
           <div className="flex items-center gap-3">
             <Copy className="w-4 h-4 text-white/60 cursor-pointer hover:text-white transition-colors" />
             <MoreHorizontal className="w-5 h-5 text-white/60 cursor-pointer hover:text-white transition-colors" />
@@ -55,13 +56,13 @@ export const FormSection: React.FC<FormSectionProps> = ({
           <div className="flex gap-4">
             {/* Left Column: Avatar and Line */}
             <div className="flex flex-col items-center">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-white/10">
-                <img 
-                  src={`https://i.pravatar.cc/150?u=${username || 'default'}`} 
-                  className="w-full h-full object-cover" 
-                  alt="Avatar"
-                />
-              </div>
+              {profilePhoto ? (
+                <img src={profilePhoto} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border border-white/10" />
+              ) : (
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-white/10 bg-white/10 flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="white" opacity="0.5"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                </div>
+              )}
               
             </div>
 
@@ -99,7 +100,7 @@ export const FormSection: React.FC<FormSectionProps> = ({
                 <textarea
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  placeholder="What's in your mind?"
+                  placeholder="What’s new in your area?"
                   rows={1}
                   className="w-full bg-transparent text-white text-sm sm:text-base placeholder-white/40 focus:outline-none resize-none overflow-hidden"
                   onInput={(e) => {

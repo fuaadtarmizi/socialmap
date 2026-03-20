@@ -29,7 +29,7 @@ const rowToPlace = (row: any): SavedPlace => ({
   id: row.id,
   userId: row.user_id,
   username: row.username,
-  avatar: row.avatar || `https://i.pravatar.cc/150?u=${row.username}`,
+  avatar: row.avatar || null,
   name: row.name || '',
   description: row.description || '',
   address: row.address || '',
@@ -118,7 +118,7 @@ export const usePosts = ({
       pushActivity({
         type: 'like',
         user: postOwner,
-        avatar: place?.avatar || `https://i.pravatar.cc/150?u=${postOwner}`,
+        avatar: place?.avatar || null,
         content: `liked "${place?.name || 'a post'}"`,
       });
     }
@@ -171,7 +171,7 @@ export const usePosts = ({
     pushActivity({
       type: 'reply',
       user: commentedPlace?.username || 'someone',
-      avatar: commentedPlace?.avatar || `https://i.pravatar.cc/150?u=${commentedPlace?.username}`,
+      avatar: commentedPlace?.avatar || null,
       content: `replied to "${commentedPlace?.name || 'a post'}": "${newComment.text}"`,
     });
     if (tokenRef.current) {
@@ -251,6 +251,18 @@ export const usePosts = ({
     setFormImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleDeletePlace = async (placeId: string) => {
+    setSavedPlaces(prev => prev.filter(p => p.id !== placeId));
+    const { error } = await supabase.from('posts').delete().eq('id', placeId);
+    if (error) {
+      console.error('Failed to delete post:', error);
+      setSavedPlaces(prev => {
+        const deleted = savedPlacesRef.current.find(p => p.id === placeId);
+        return deleted ? [deleted, ...prev] : prev;
+      });
+    }
+  };
+
   return {
     savedPlaces,
     setSavedPlaces,
@@ -260,5 +272,6 @@ export const usePosts = ({
     handleSavePlace,
     handleImageUpload,
     removeFormImage,
+    handleDeletePlace,
   };
 };

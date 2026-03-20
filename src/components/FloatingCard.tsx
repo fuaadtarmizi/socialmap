@@ -9,6 +9,7 @@ interface FloatingCardProps {
   savedPlaces: SavedPlace[];
   user: { id: string; username: string; email: string } | null;
   followingSet: Set<string>;
+  profilePhoto?: string | null;
   handleLike: (placeId: string) => void;
   handleFollow: (username: string) => void;
   setActiveTab: (tab: string) => void;
@@ -24,6 +25,7 @@ export const FloatingCard: React.FC<FloatingCardProps> = ({
   savedPlaces,
   user,
   followingSet,
+  profilePhoto,
   handleLike,
   handleFollow,
   setActiveTab,
@@ -479,6 +481,7 @@ export const FloatingCard: React.FC<FloatingCardProps> = ({
       followingSet={followingSet}
       commentingOnPlace={commentingOnPlace}
       commentInput={commentInput}
+      profilePhoto={profilePhoto}
       handleLike={handleLike}
       handleFollow={handleFollow}
       setActiveTab={setActiveTab}

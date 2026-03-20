@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Pin, Heart, MessageCircle, Repeat, Share, MoreHorizontal, Settings, LogOut, UserPlus, Send } from 'lucide-react';
+import { MessageCircle, MoreHorizontal, Settings, LogOut, UserPlus, Send, Heart, MapPin, Trash2, Archive, Camera } from 'lucide-react';
+import { SavedPlace } from '../components/PostingCard';
 
 interface User {
   id: string;
@@ -12,13 +13,33 @@ interface ProfileProps {
   onLogout: () => void;
   isOwn?: boolean;
   followerCount?: number;
+  savedPlaces?: SavedPlace[];
+  onDeletePlace?: (id: string) => void;
 }
 
-export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, followerCount = 74 }) => {
+export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, followerCount = 74, savedPlaces = [], onDeletePlace }) => {
+  const myPosts = savedPlaces.filter(p => p.userId === user.id);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [postMenuOpenId, setPostMenuOpenId] = useState<string | null>(null);
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
   const [displayUsername] = useState(user.username);
   const [displayBio] = useState('Software Developer | Lead of PetalCode Labs\ni do coding as a hobby 🧘‍♀️');
+  const photoKey = `profile_photo_${user.id}`;
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(() => localStorage.getItem(photoKey));
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setProfilePhoto(dataUrl);
+      localStorage.setItem(photoKey, dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -68,9 +89,30 @@ export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, 
             {/* Header */}
             <div className="flex  items-center mb-4">
                 <div className="flex items-center gap-2">
-                    <img
-                    src={`https://i.pravatar.cc/150?u=${user.username}`}
-                    className="w-16 h-16 rounded-full object-cover border border-white/10"
+                    <div
+                      className="relative w-16 h-16 rounded-full border border-white/10 bg-white/10 flex items-center justify-center overflow-hidden group"
+                      onClick={() => isOwn && fileInputRef.current?.click()}
+                      style={{ cursor: isOwn ? 'pointer' : 'default' }}
+                    >
+                      {profilePhoto ? (
+                        <img src={profilePhoto} className="w-full h-full object-cover" />
+                      ) : (
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="white" opacity="0.5">
+                          <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+                        </svg>
+                      )}
+                      {isOwn && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Camera size={18} className="text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handlePhotoChange}
                     />
                 </div>
                 <div className="px-5">
@@ -89,11 +131,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, 
           {/* Followers */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              <div className="flex -space-x-2">
-                <img src="https://i.pravatar.cc/150?u=1" className="w-5 h-5 rounded-full border border-[#101010]" />
-                <img src="https://i.pravatar.cc/150?u=2" className="w-5 h-5 rounded-full border border-[#101010]" />
-                <img src="https://i.pravatar.cc/150?u=3" className="w-5 h-5 rounded-full border border-[#101010]" />
-              </div>
               <span className="text-white/40 text-sm">{followerCount} followers</span>
             </div>
             {isOwn && (
@@ -136,90 +173,97 @@ export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, 
             <button className="flex-1 pb-3 text-white/40 text-sm font-bold">Reposts</button>
           </div>
 
-          {/* Composer */}
-          <div className="flex gap-3 items-center py-4 border-b border-white/5">
-            <img src="https://i.pravatar.cc/150?u=fuaad" className="w-9 h-9 rounded-full object-cover" />
-            <span className="text-white/30 text-sm flex-1">What's new?</span>
-            <button className="px-4 py-1.5 bg-white/10 text-white/40 rounded-lg text-sm font-bold">Post</button>
-          </div>
-
           {/* Posts */}
-          <div className="divide-y divide-white/5">
-            {/* Pinned post */}
-            <div className="py-4">
-              <div className="flex items-center gap-2 text-white/40 text-[12px] mb-2 ml-12">
-                <Pin size={12} className="rotate-45" />
-                <span>Pinned</span>
-              </div>
-              <div className="flex gap-3">
-                <img src="https://i.pravatar.cc/150?u=fuaad" className="w-9 h-9 rounded-full object-cover" />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <span className="font-bold text-white text-sm">fuaadtarmizi</span>
-                      <span className="text-white/40 text-sm">02/07/26</span>
+          {myPosts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-white/30">
+              <MessageCircle size={32} className="mb-3 opacity-30" />
+              <p className="text-sm">No posts yet</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-white/5">
+              {myPosts.filter(p => !archivedIds.has(p.id)).map(place => (
+                <div key={place.id} className="py-4 flex gap-3">
+                  {profilePhoto ? (
+                    <img src={profilePhoto} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="white" opacity="0.5">
+                        <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+                      </svg>
                     </div>
-                    <MoreHorizontal size={16} className="text-white/40" />
-                  </div>
-                  <p className="text-white text-sm mt-1 leading-normal">
-                    hi semua, i trying to find a partner who always in the track to be success, who always stick on our mission. i have good idea IT project startup. if u demanding money on current situation, please forget it because we dont have any fund but soon will open for a partnership officially.
-                  </p>
-                  <p className="text-white text-sm mt-3 leading-normal">
-                    A partner must be good encourage people, good in strategy to find investor. i have a skill in coding and manage project on backend but i dont have any skill to talk.
-                  </p>
-                  <p className="text-white text-sm mt-3 leading-normal">
-                    please dm me, if u guys feel interested 😊
-                  </p>
-                  <div className="flex gap-4 mt-4 text-white/40">
-                    <div className="flex items-center gap-1.5">
-                      <Heart size={18} />
-                      <span className="text-xs">13</span>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-white text-sm">{user.username}</span>
+                      {/* 3-dot menu */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setPostMenuOpenId(postMenuOpenId === place.id ? null : place.id)}
+                          className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+                        >
+                          <MoreHorizontal size={16} className="text-white/40" />
+                        </button>
+                        {postMenuOpenId === place.id && (
+                          <div className="absolute right-0 top-8 w-40 bg-[#1e1e1e] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-30">
+                            <button
+                              className="w-full flex items-center gap-3 px-4 py-3 text-white/80 text-sm hover:bg-white/5 transition-colors"
+                              onClick={() => {
+                                setArchivedIds(prev => new Set([...prev, place.id]));
+                                setPostMenuOpenId(null);
+                              }}
+                            >
+                              <Archive size={14} className="text-white/50" />
+                              Archive
+                            </button>
+                            <div className="border-t border-white/10" />
+                            <button
+                              className="w-full flex items-center gap-3 px-4 py-3 text-red-500 text-sm hover:bg-red-500/5 transition-colors"
+                              onClick={() => {
+                                onDeletePlace?.(place.id);
+                                setPostMenuOpenId(null);
+                              }}
+                            >
+                              <Trash2 size={14} />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <MessageCircle size={18} />
-                      <span className="text-xs">9</span>
+                    {place.name && (
+                      <p className="text-white font-semibold text-sm">{place.name}</p>
+                    )}
+                    {place.description && (
+                      <p className="text-white/80 text-sm mt-1 leading-normal">{place.description}</p>
+                    )}
+                    {place.address && (
+                      <div className="flex items-center gap-1 mt-1 text-white/40 text-xs">
+                        <MapPin size={11} />
+                        <span className="truncate">{place.address}</span>
+                      </div>
+                    )}
+                    {place.images.length > 0 && (
+                      <div className="flex gap-2 mt-2 overflow-x-auto no-scrollbar">
+                        {place.images.map((img, i) => (
+                          <img key={i} src={img} className="w-40 h-40 rounded-xl object-cover border border-white/10 flex-shrink-0" referrerPolicy="no-referrer" />
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-4 mt-3 text-white/40">
+                      <div className="flex items-center gap-1.5">
+                        <Heart size={16} />
+                        <span className="text-xs">{place.likedBy.length}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <MessageCircle size={16} />
+                        <span className="text-xs">{place.comments.length}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Repeat size={18} />
-                      <span className="text-xs">1</span>
-                    </div>
-                    <Share size={18} />
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
-
-            {/* Regular post */}
-            <div className="py-4">
-              <div className="flex gap-3">
-                <img src="https://i.pravatar.cc/150?u=fuaad" className="w-9 h-9 rounded-full object-cover" />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <span className="font-bold text-white text-sm">fuaadtarmizi</span>
-                      <span className="text-white/40 text-sm">1d</span>
-                    </div>
-                    <MoreHorizontal size={16} className="text-white/40" />
-                  </div>
-                  <p className="text-white text-sm mt-1 leading-normal">
-                    hi semua, saya ade satu jam nak let go, jam beli dekat tiktok. condition still baru. reason jual sbb dah dapat colour lain. beli rm299 can nego utill let go. cod sahaja diterima{' '}
-                    <span className="text-white/40">Translate</span>
-                  </p>
-                  <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
-                    <img src="https://picsum.photos/seed/watch1/300/400" className="w-40 h-52 rounded-lg object-cover border border-white/10" />
-                    <img src="https://picsum.photos/seed/watch2/300/400" className="w-40 h-52 rounded-lg object-cover border border-white/10" />
-                    <img src="https://picsum.photos/seed/watch3/300/400" className="w-40 h-52 rounded-lg object-cover border border-white/10" />
-                  </div>
-                  <div className="flex gap-4 mt-4 text-white/40">
-                    <Heart size={18} />
-                    <MessageCircle size={18} />
-                    <Repeat size={18} />
-                    <Share size={18} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
         <div className="h-24"></div>
       </div>
