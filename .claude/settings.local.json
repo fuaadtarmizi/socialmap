@@ -8,7 +8,10 @@
       "Bash(rm:*)",
       "Bash(del \"C:\\\\Users\\\\User\\\\OneDrive\\\\Desktop\\\\social maps\\\\socialmapApp\\\\src\\\\App.tsx\")",
       "Bash(cd \"C:\\\\Users\\\\User\\\\OneDrive\\\\Desktop\\\\social maps\\\\socialmapApp\" && npm uninstall react-markdown 2>&1)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(grep -r \"avatar\\\\|pin\\\\|place\" 'C:\\\\Users\\\\User\\\\OneDrive\\\\Desktop\\\\social maps\\\\socialmapApp\\\\src' --include=*.css)",
+      "Bash(find 'C:\\\\Users\\\\User\\\\OneDrive\\\\Desktop\\\\social maps\\\\socialmapApp' -name *.css -o -name *.scss)",
+      "Bash(curl:*)"
     ]
   }
 }

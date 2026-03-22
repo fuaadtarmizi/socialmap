@@ -8,6 +8,7 @@ import { Profile } from './pages/Profile';
 import { Login } from './api/Login';
 import { Signup } from './api/Signup';
 import { Send, MoreHorizontal, Pin, Heart, Repeat, Share, MapPin, User } from 'lucide-react';
+import { supabase } from './lib/supabase';
 import { useAuth } from './hooks/useAuth';
 import { usePosts } from './hooks/usePosts';
 import { useGeocoding } from './hooks/useGeocoding';
@@ -42,12 +43,22 @@ const App = () => {
     }
   );
 
-  // Sync profilePhoto from localStorage once user is known
+  // Sync profilePhoto: localStorage first for instant display, then Supabase as authoritative
   useEffect(() => {
-    if (user) {
-      const cached = localStorage.getItem(`profile_photo_${user.id}`);
-      if (cached) setProfilePhoto(cached);
-    }
+    if (!user) return;
+    const cached = localStorage.getItem(`profile_photo_${user.id}`);
+    if (cached) setProfilePhoto(cached);
+    supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.avatar_url) {
+          setProfilePhoto(data.avatar_url);
+          localStorage.setItem(`profile_photo_${user.id}`, data.avatar_url);
+        }
+      });
   }, [user?.id]);
 
   // Form State
@@ -82,6 +93,7 @@ const App = () => {
   } = usePosts({
     user,
     token,
+    avatarUrl: profilePhoto,
     pushActivity,
     previewCoords,
     formAddress,

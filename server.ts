@@ -12,9 +12,11 @@ const PORT = 3000;
 
 const SUPABASE_URL = 'https://zqmqxhmbakukcgptfrsv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpxbXF4aG1iYWt1a2NncHRmcnN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyOTEyNjcsImV4cCI6MjA4ODg2NzI2N30.DHYIP0uXynql_NH3r9shPx_01etmzfbNPf-a9yedpSs';
+// Service role key bypasses RLS — get it from Supabase Dashboard → Settings → API → service_role
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY;
 
-// Use service role key here if you have it, so server can bypass RLS
-const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Uses service role key so server-side operations (likes, views, comments) bypass RLS
+const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 app.use(express.json({ limit: '10mb' }));
 

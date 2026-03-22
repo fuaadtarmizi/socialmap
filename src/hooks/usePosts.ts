@@ -13,6 +13,7 @@ interface ActivityPayload {
 interface UsePostsParams {
   user: AuthUser | null;
   token: string | null;
+  avatarUrl: string | null;
   pushActivity: (item: ActivityPayload) => void;
   previewCoords: { lat: number; lng: number } | null;
   formAddress: string;
@@ -44,6 +45,7 @@ const rowToPlace = (row: any): SavedPlace => ({
 export const usePosts = ({
   user,
   token,
+  avatarUrl,
   pushActivity,
   previewCoords,
   formAddress,
@@ -66,14 +68,34 @@ export const usePosts = ({
   useEffect(() => {
     if (!user) return;
 
-    // Initial fetch
+    // Initial fetch — also resolve missing avatars from profiles
     supabase
       .from('posts')
       .select('*')
       .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
+      .then(async ({ data, error }) => {
         if (error) { console.error('Failed to load posts:', error); return; }
-        setSavedPlaces((data || []).map(rowToPlace));
+        const rows = data || [];
+
+        // Fetch avatars from profiles for ALL post authors (authoritative source)
+        const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+        let profileMap: Record<string, string> = {};
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, avatar_url')
+            .in('id', userIds);
+          (profiles || []).forEach(p => {
+            if (p.avatar_url) profileMap[p.id] = p.avatar_url;
+          });
+          console.log('[DEBUG] userIds:', userIds);
+          console.log('[DEBUG] profileMap:', profileMap);
+        }
+
+        setSavedPlaces(rows.map(r => rowToPlace({
+          ...r,
+          avatar: profileMap[r.user_id] || r.avatar || null,
+        })));
       });
 
     // Realtime: new post from any user appears instantly
@@ -82,9 +104,19 @@ export const usePosts = ({
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'posts' },
-        (payload) => {
+        async (payload) => {
           console.log('Realtime INSERT:', payload.new);
-          const newPlace = rowToPlace(payload.new);
+          const row = payload.new;
+          let avatar = row.avatar;
+          if (!avatar && row.user_id) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('avatar_url')
+              .eq('id', row.user_id)
+              .single();
+            avatar = profile?.avatar_url || null;
+          }
+          const newPlace = rowToPlace({ ...row, avatar });
           setSavedPlaces(prev => {
             if (prev.find(p => p.id === newPlace.id)) return prev;
             return [newPlace, ...prev];
@@ -200,7 +232,7 @@ export const usePosts = ({
         .insert([{
           user_id: user.id,
           username: user.username || user.email || 'user',
-          avatar: '',
+          avatar: avatarUrl || '',
           name: formAddress,
           description: formDescription,
           address: formAddress,

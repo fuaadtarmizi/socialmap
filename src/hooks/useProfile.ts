@@ -46,12 +46,14 @@ export const useProfile = (user: AuthUser | null) => {
     const path = `${user.id}/avatar.${ext}`;
 
     // Remove existing file first to avoid upsert issues
-    await supabase.storage.from('avatars').remove([path]);
+    const { error: removeError } = await supabase.storage.from('avatars').remove([path]);
+    console.log('[DEBUG] remove error:', removeError);
 
     const { error } = await supabase.storage
       .from('avatars')
       .upload(path, file);
 
+    console.log('[DEBUG] upload error:', error);
     if (error) {
       console.error('Avatar upload error:', error);
       setUploadError(error.message);
@@ -60,17 +62,18 @@ export const useProfile = (user: AuthUser | null) => {
     }
 
     const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+    console.log('[DEBUG] publicUrl:', data.publicUrl);
     const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
 
     localStorage.setItem(`profile_photo_${user.id}`, avatarUrl);
     setProfileData(prev => ({ ...prev, avatarUrl }));
 
-    await supabase.from('profiles').upsert({
+    const { error: upsertError } = await supabase.from('profiles').upsert({
       id: user.id,
       username: user.username,
       avatar_url: data.publicUrl,
-      updated_at: new Date().toISOString(),
     });
+    console.log('[DEBUG] upsert error:', upsertError);
 
     setLoading(false);
     return avatarUrl;
@@ -83,7 +86,6 @@ export const useProfile = (user: AuthUser | null) => {
       id: user.id,
       username: user.username,
       bio,
-      updated_at: new Date().toISOString(),
     });
   };
 
@@ -94,7 +96,6 @@ export const useProfile = (user: AuthUser | null) => {
       id: user.id,
       username: user.username,
       display_name: displayName,
-      updated_at: new Date().toISOString(),
     });
   };
 
