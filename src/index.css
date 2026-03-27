@@ -11,15 +11,23 @@
 
 body {
   font-family: var(--font-sans);
-  background-color: var(--bg);
+  background-color: #1e293b;
   color: var(--ink);
   margin: 0;
   overflow: hidden;
 }
 
+#root {
+  max-width: 640px;
+  margin: 0 auto;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
 #map {
   height: 100vh;
-  width: 100vw;
+  width: 100%;
   z-index: 0;
 }
 
@@ -56,7 +64,8 @@ body {
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
 }
 
-.leaflet-control-zoom-in, .leaflet-control-zoom-out {
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
   background-color: white !important;
   color: #1e293b !important;
   border: 1px solid #e2e8f0 !important;
@@ -66,7 +75,7 @@ body {
   padding: 0;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 .sm-popup .leaflet-popup-content {
   margin: 0;
@@ -77,7 +86,7 @@ body {
 }
 
 .sm-card {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   color: #3c4043;
 }
 .card-header {
@@ -120,14 +129,43 @@ body {
   font-size: 13px;
   margin-bottom: 4px;
 }
-.rating-val { font-weight: 500; color: #70757a; }
-.stars { color: #fbbc04; letter-spacing: 1px; }
-.rating-count { color: #70757a; }
-.card-meta { font-size: 13px; color: #70757a; margin-bottom: 2px; }
-.card-status { font-size: 13px; color: #70757a; margin-bottom: 4px; }
-.status-open { color: #188038; font-weight: 500; }
-.card-address { font-size: 13px; color: #70757a; margin-bottom: 8px; }
-.card-desc { font-size: 12px; color: #3c4043; margin-top: 8px; border-top: 1px solid #f1f3f4; padding-top: 8px; }
+.rating-val {
+  font-weight: 500;
+  color: #70757a;
+}
+.stars {
+  color: #fbbc04;
+  letter-spacing: 1px;
+}
+.rating-count {
+  color: #70757a;
+}
+.card-meta {
+  font-size: 13px;
+  color: #70757a;
+  margin-bottom: 2px;
+}
+.card-status {
+  font-size: 13px;
+  color: #70757a;
+  margin-bottom: 4px;
+}
+.status-open {
+  color: #188038;
+  font-weight: 500;
+}
+.card-address {
+  font-size: 13px;
+  color: #70757a;
+  margin-bottom: 8px;
+}
+.card-desc {
+  font-size: 12px;
+  color: #3c4043;
+  margin-top: 8px;
+  border-top: 1px solid #f1f3f4;
+  padding-top: 8px;
+}
 
 .card-actions {
   display: flex;
@@ -153,5 +191,11 @@ body {
   color: #5f6368;
 }
 
-.preview-marker-icon { background: none; border: none; }
-.saved-marker-icon { background: none; border: none; }
+.preview-marker-icon {
+  background: none;
+  border: none;
+}
+.saved-marker-icon {
+  background: none;
+  border: none;
+}

@@ -15,6 +15,7 @@ interface FloatingCardProps {
   setActiveTab: (tab: string) => void;
   onAddComment: (placeId: string, text: string) => void;
   onSetCommentingOnPlace?: (setter: (id: string | null) => void) => void;
+  onViewProfile?: (userId: string, username: string, avatar?: string | null) => void;
 }
 
 export const FloatingCard: React.FC<FloatingCardProps> = ({
@@ -31,6 +32,7 @@ export const FloatingCard: React.FC<FloatingCardProps> = ({
   setActiveTab,
   onAddComment,
   onSetCommentingOnPlace,
+  onViewProfile,
 }) => {
   const [commentingOnPlace, setCommentingOnPlace] = useState<string | null>(null);
   React.useEffect(() => { onSetCommentingOnPlace?.(setCommentingOnPlace); }, []);
@@ -488,6 +490,7 @@ export const FloatingCard: React.FC<FloatingCardProps> = ({
       setCommentingOnPlace={setCommentingOnPlace}
       setCommentInput={setCommentInput}
       handleAddComment={handleAddComment}
+      onViewProfile={onViewProfile}
     />
     </>
   );

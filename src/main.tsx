@@ -20,6 +20,7 @@ import { FloatingCard } from './components/FloatingCard';
 import { Map } from './components/Map';
 import { SearchBar } from './components/SearchBar';
 import { SplashScreen } from './components/SplashScreen';
+import { useMapBuildings } from './components/map/UImap';
 
 /**
  * Social Map - Enhanced with Image Support
@@ -70,6 +71,12 @@ const App = () => {
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('map');
+  const [viewingProfile, setViewingProfile] = useState<{ id: string; username: string; avatar?: string | null } | null>(null);
+
+  const handleViewProfile = (userId: string, username: string, avatar?: string | null) => {
+    setViewingProfile({ id: userId, username, avatar });
+    setActiveTab('profile');
+  };
   const {
     activities,
     activityFilter,
@@ -122,6 +129,8 @@ const App = () => {
     profilePhoto,
   });
 
+  useMapBuildings(mapRef);
+
   const { locating, handleLocate } = useGeocoding({
     mapRef,
     formAddress,
@@ -150,11 +159,13 @@ const App = () => {
       )}
 
       {!authLoading && user && (
-    <div className="relative h-screen w-screen overflow-hidden bg-slate-900">
+    <div className="relative h-screen w-full overflow-hidden bg-slate-900">
       <Map />
 
+      
+
       {/* SEARCH BAR */}
-      {activeTab === 'map' && (
+      {(activeTab === 'map' || activeTab === 'near') && (
         <SearchBar
           savedPlaces={savedPlaces}
           onSelectPlace={(place) => {
@@ -250,7 +261,28 @@ const App = () => {
       {activeTab === 'inbox' && <Chat currentUsername={username} profilePhoto={profilePhoto} />}
 
       {/* PROFILE PAGE OVERLAY */}
-      {activeTab === 'profile' && <Profile user={user} onLogout={handleLogout} followerCount={userFollowers[user?.username || ''] ?? 74} savedPlaces={savedPlaces} onDeletePlace={handleDeletePlace} onPhotoChange={setProfilePhoto} />}
+      {activeTab === 'profile' && (
+        viewingProfile && viewingProfile.id !== user.id ? (
+          <Profile
+            user={{ id: viewingProfile.id, username: viewingProfile.username, email: '' }}
+            onLogout={handleLogout}
+            isOwn={false}
+            followerCount={userFollowers[viewingProfile.username] ?? 0}
+            savedPlaces={savedPlaces}
+            onBack={() => { setViewingProfile(null); setActiveTab('near'); }}
+          />
+        ) : (
+          <Profile
+            user={user}
+            onLogout={() => { handleLogout(); setViewingProfile(null); }}
+            followerCount={userFollowers[user?.username || ''] ?? 74}
+            savedPlaces={savedPlaces}
+            onDeletePlace={handleDeletePlace}
+            onPhotoChange={setProfilePhoto}
+            onBack={viewingProfile ? () => { setViewingProfile(null); setActiveTab('near'); } : undefined}
+          />
+        )
+      )}
 
       {/* FLOATING CARD FOR POINTED PLACE */}
       <FloatingCard
@@ -267,6 +299,7 @@ const App = () => {
         setActiveTab={setActiveTab}
         onAddComment={handleAddComment}
         onSetCommentingOnPlace={setter => { setCommentingOnPlaceRef.current = setter; }}
+        onViewProfile={handleViewProfile}
       />
 
       {/* BOTTOM UI CONTAINER */}
@@ -277,14 +310,14 @@ const App = () => {
       <BottomNavigateBar
         activeTab={activeTab}
         isFormOpen={isFormOpen}
-        setActiveTab={setActiveTab}
+        setActiveTab={(tab) => { setViewingProfile(null); setActiveTab(tab); }}
         setIsFormOpen={setIsFormOpen}
       />
 
       {/* FORM SECTION - BOTTOM DRAWER STYLE */}
       {isFormOpen && activeTab === 'near' && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center p-2 sm:p-4 pointer-events-none">
-          <div className="relative w-full  pointer-events-auto">
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[640px] z-50 flex items-end justify-center p-2 sm:p-4 pointer-events-none">
+          <div className="relative w-full pointer-events-auto">
             <FormSection
               formAddress={formAddress}
               setFormAddress={setFormAddress}

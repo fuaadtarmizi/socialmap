@@ -96,9 +96,9 @@ export const useMap = ({
         const t = Math.max(0, Math.min(1, (zoom - 12) / (16 - 12)))
         const pitch = 15 + 20 * t
 
-        map.easeTo({
+        map.easeTo({          
           pitch,
-          duration: 2000,
+          duration: 1000,
           easing: (t) => t
         })
       }
@@ -117,10 +117,11 @@ export const useMap = ({
         const place = savedPlacesRef.current.find(p => p.id === pointedPlaceIdRef.current);
         if (place) {
           const point = mapRef.current!.project([place.lng, place.lat]);
+          const rect = mapRef.current!.getCanvas().getBoundingClientRect();
           const card = document.getElementById('floating-posting-card');
           if (card) {
-            card.style.left = `${point.x}px`;
-            card.style.top = `${point.y - 40}px`;
+            card.style.left = `${rect.left + point.x}px`;
+            card.style.top = `${rect.top + point.y - 40}px`;
           }
         }
       });
@@ -209,9 +210,10 @@ export const useMap = ({
           setCardPos(null);
         } else {
           const point = mapRef.current!.project([place.lng, place.lat]);
+          const rect = mapRef.current!.getCanvas().getBoundingClientRect();
           pointedPlaceIdRef.current = place.id;
           setPointedPlaceId(place.id);
-          setCardPos({ x: point.x, y: point.y });
+          setCardPos({ x: rect.left + point.x, y: rect.top + point.y });
         }
       });
 

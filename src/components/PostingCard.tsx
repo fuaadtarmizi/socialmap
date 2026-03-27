@@ -47,6 +47,7 @@ interface PostingCardProps {
   setCommentingOnPlace: (id: string | null) => void;
   setCommentInput: (input: string) => void;
   handleAddComment: (placeId: string) => void;
+  onViewProfile?: (userId: string, username: string, avatar?: string | null) => void;
 }
 
 export const PostingCard: React.FC<PostingCardProps> = ({
@@ -66,6 +67,7 @@ export const PostingCard: React.FC<PostingCardProps> = ({
   setCommentingOnPlace,
   setCommentInput,
   handleAddComment,
+  onViewProfile,
 }) => {
   if (!pointedPlaceId || !cardPos || isFormOpen || activeTab !== 'near') return null;
 
@@ -92,10 +94,17 @@ export const PostingCard: React.FC<PostingCardProps> = ({
                     {(() => {
                       const isOwner = place.userId === user?.id;
                       const src = isOwner ? (profilePhoto || place.avatar) : place.avatar;
+                      const handleAvatarClick = () => {
+                        if (isOwner) {
+                          setActiveTab('profile');
+                        } else if (place.userId) {
+                          onViewProfile?.(place.userId, place.username || '', place.avatar);
+                        }
+                      };
                       return src ? (
-                        <img src={src} className="threads-avatar cursor-pointer" onClick={() => setActiveTab('profile')} />
+                        <img src={src} className="threads-avatar cursor-pointer" onClick={handleAvatarClick} />
                       ) : (
-                        <div className="threads-avatar cursor-pointer bg-white/10 flex items-center justify-center" onClick={() => setActiveTab('profile')}>
+                        <div className="threads-avatar cursor-pointer bg-white/10 flex items-center justify-center" onClick={handleAvatarClick}>
                           <svg viewBox="0 0 24 24" width="20" height="20" fill="white" opacity="0.5"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
                         </div>
                       );

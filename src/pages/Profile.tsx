@@ -1,5 +1,20 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, MoreHorizontal, Settings, LogOut, UserPlus, Send, Heart, MapPin, Trash2, Archive, Camera } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Archive,
+  ArrowLeft,
+  Camera,
+  Grid3X3,
+  LogOut,
+  Map,
+  MapPin,
+  MessageCircle,
+  MoreHorizontal,
+  Send,
+  Settings,
+  SlidersHorizontal,
+  Trash2,
+  UserPlus,
+} from 'lucide-react';
 import { SavedPlace } from '../components/PostingCard';
 import { useProfile } from '../hooks/useProfile';
 import { AuthUser } from '../hooks/useAuth';
@@ -12,14 +27,36 @@ interface ProfileProps {
   savedPlaces?: SavedPlace[];
   onDeletePlace?: (id: string) => void;
   onPhotoChange?: (url: string) => void;
+  onBack?: () => void;
 }
 
-export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, followerCount = 74, savedPlaces = [], onDeletePlace, onPhotoChange }) => {
-  const myPosts = savedPlaces.filter(p => p.userId === user.id);
+type ProfileTab = 'places';
+
+const ACCENT = '#ff5a5f';
+
+export const Profile: React.FC<ProfileProps> = ({
+  user,
+  onLogout,
+  isOwn = true,
+  followerCount = 74,
+  savedPlaces = [],
+  onDeletePlace,
+  onPhotoChange,
+  onBack,
+}) => {
+  const myPosts = useMemo(
+    () => savedPlaces.filter((p) => p.userId === user.id),
+    [savedPlaces, user.id]
+  );
+
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const [postMenuOpenId, setPostMenuOpenId] = useState<string | null>(null);
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<ProfileTab>('places');
+  const [selectedCity, setSelectedCity] = useState<string>('All');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+
+  const menuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { profileData, loading, uploadError, updatePhoto } = useProfile(user);
@@ -27,10 +64,18 @@ export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, 
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+
+      if (menuRef.current && !menuRef.current.contains(target)) {
         setMenuOpen(false);
       }
+
+      const clickedMenuButton = (target as HTMLElement)?.closest?.('[data-post-menu]');
+      if (!clickedMenuButton) {
+        setPostMenuOpenId(null);
+      }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -38,190 +83,365 @@ export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     const url = await updatePhoto(file);
     if (url) onPhotoChange?.(url);
   };
 
+  const getPlaceImage = (place: SavedPlace) => {
+    return place.images?.[0] || '';
+  };
+
+  const getPlaceTitle = (place: SavedPlace) => {
+    return place.name?.trim() || 'Untitled place';
+  };
+
+  const getPlaceSubtitle = (place: SavedPlace) => {
+    return place.address?.trim() || place.description?.trim() || 'No location added';
+  };
+
+  const inferCityFromPlace = (place: SavedPlace) => {
+    const raw = `${place.address || ''} ${place.name || ''} ${place.description || ''}`.toLowerCase();
+
+    if (raw.includes('kuala lumpur') || raw.includes('kl')) return 'Kuala Lumpur';
+    if (raw.includes('bangkok')) return 'Bangkok';
+    if (raw.includes('bali')) return 'Bali';
+    if (raw.includes('tbilisi')) return 'Tbilisi';
+    if (raw.includes('johor')) return 'Johor';
+    if (raw.includes('penang')) return 'Penang';
+
+    const address = place.address?.split(',')?.[0]?.trim();
+    return address || 'Unknown';
+  };
+
+  const inferCategoryFromPlace = (place: SavedPlace) => {
+    const raw = `${place.name || ''} ${place.description || ''} ${place.address || ''}`.toLowerCase();
+
+    if (
+      raw.includes('coffee') ||
+      raw.includes('cafe') ||
+      raw.includes('latte') ||
+      raw.includes('espresso')
+    ) {
+      return 'Cafe';
+    }
+
+    if (
+      raw.includes('restaurant') ||
+      raw.includes('dinner') ||
+      raw.includes('lunch') ||
+      raw.includes('food')
+    ) {
+      return 'Restaurant';
+    }
+
+    if (
+      raw.includes('hotel') ||
+      raw.includes('stay') ||
+      raw.includes('villa') ||
+      raw.includes('resort')
+    ) {
+      return 'Stay';
+    }
+
+    if (
+      raw.includes('photo') ||
+      raw.includes('view') ||
+      raw.includes('spot') ||
+      raw.includes('tourist')
+    ) {
+      return 'Photo Spot';
+    }
+
+    if (
+      raw.includes('cozy') ||
+      raw.includes('aesthetic') ||
+      raw.includes('calm')
+    ) {
+      return 'Cozy';
+    }
+
+    return 'Place';
+  };
+
+  const visiblePosts = useMemo(() => {
+    const base = myPosts.filter((p) => !archivedIds.has(p.id));
+
+    return base;
+  }, [myPosts, archivedIds, activeTab]);
+
+  const cityOptions = useMemo(() => {
+    const list = Array.from(new Set(visiblePosts.map(inferCityFromPlace).filter(Boolean)));
+    return ['All', ...list.slice(0, 8)];
+  }, [visiblePosts]);
+
+  const categoryOptions = useMemo(() => {
+    const list = Array.from(new Set(visiblePosts.map(inferCategoryFromPlace).filter(Boolean)));
+    return ['All', ...list.slice(0, 8)];
+  }, [visiblePosts]);
+
+  const filteredPosts = useMemo(() => {
+    return visiblePosts.filter((place) => {
+      const city = inferCityFromPlace(place);
+      const category = inferCategoryFromPlace(place);
+
+      const cityMatch = selectedCity === 'All' || city === selectedCity;
+      const categoryMatch = selectedCategory === 'All' || category === selectedCategory;
+
+      return cityMatch && categoryMatch;
+    });
+  }, [visiblePosts, selectedCity, selectedCategory]);
+
+  const placeCount = myPosts.filter((p) => !archivedIds.has(p.id)).length;
+const username = `@${user.username.toLowerCase()}`;
+  const headline = bio?.trim()
+    ? bio
+    : 'Collecting favorite places, cozy corners and beautiful moments.';
+
   return (
-    <div className="absolute inset-0 z-50 bg-[#101010] flex flex-col animate-in fade-in duration-300">
-     <div className="flex justify-end py-2">
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setMenuOpen(v => !v)}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
-          >
-            <MoreHorizontal size={20} className="text-white/60" />
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-9 w-44 bg-[#1e1e1e] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-20">
-              <button
-                className="w-full flex items-center gap-3 px-4 py-3 text-white text-sm hover:bg-white/5 transition-colors"
-                onClick={() => setMenuOpen(false)}
-              >
-                <Settings size={16} className="text-white/50" />
-                Settings
-              </button>
-              <div className="border-t border-white/10" />
-              <button
-                className="w-full flex items-center gap-3 px-4 py-3 text-red-500 text-sm hover:bg-red-500/5 transition-colors"
-                onClick={() => { setMenuOpen(false); onLogout(); }}
-              >
-                <LogOut size={16} />
-                Log out
-              </button>
-            </div>
-          )}
-        </div>
-     </div>
-
+    <div className="absolute inset-0 z-50 bg-black text-white flex flex-col animate-in fade-in duration-300">
       <div className="flex-1 overflow-y-auto no-scrollbar">
-        <div className="p-4">
-            {/* Header */}
-            <div className="flex items-center mb-4">
-                <div className="flex items-center gap-2">
-                    <div className="relative w-16 h-16">
-                      <div
-                        className="w-16 h-16 rounded-full border border-white/10 bg-white/10 flex items-center justify-center overflow-hidden"
-                        onClick={() => isOwn && !loading && fileInputRef.current?.click()}
-                        style={{ cursor: isOwn ? 'pointer' : 'default' }}
-                      >
-                        {profilePhoto ? (
-                          <img src={profilePhoto} className="w-full h-full object-cover" />
-                        ) : (
-                          <svg viewBox="0 0 24 24" width="32" height="32" fill="white" opacity="0.5">
-                            <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-                          </svg>
-                        )}
-                      </div>
-                      {isOwn && (
-                        <button
-                          onClick={() => !loading && fileInputRef.current?.click()}
-                          className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-white flex items-center justify-center shadow-md border border-white/20"
-                          style={{ cursor: 'pointer' }}
-                        >
-                          {loading ? (
-                            <div className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <Camera size={12} className="text-black" />
-                          )}
-                        </button>
-                      )}
-                    </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handlePhotoChange}
-                    />
-                </div>
-                <div className="px-5">
-                  {uploadError && (
-                    <p className="text-red-400 text-xs mb-1">{uploadError}</p>
-                  )}
-                    <h1 className="text-2xl font-bold text-white">{displayName || user.username}</h1>
-                    <div className="flex items-center gap-1 mt-1">
-                        <span className="text-white text-sm">{user.username.toLowerCase()}</span>
-                    </div>
-                </div>
-            </div>
-
-          {/* Bio */}
-          {bio ? (
-            <div className="text-white text-sm mb-4 leading-relaxed">
-              {bio.split('\n').map((line, i) => <p key={i}>{line}</p>)}
-            </div>
-          ) : null}
-
-          {/* Followers */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <span className="text-white/40 text-sm">{followerCount} followers</span>
-            </div>
-            {isOwn && (
-              <div className="flex items-center gap-2">
-                {/* Instagram */}
-                <div className="w-6 h-6 flex items-center justify-center rounded-md bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="white">
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                  </svg>
-                </div>
-                {/* TikTok */}
-                <div className="w-6 h-6 flex items-center justify-center rounded-md bg-black border border-white/20">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="white">
-                    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.22 8.22 0 004.84 1.56V6.79a4.85 4.85 0 01-1.07-.1z"/>
-                  </svg>
-                </div>
-              </div>
+        <div className="px-4 pt-3 pb-28">
+          {/* Top Bar */}
+          <div className="flex items-center justify-between mb-5">
+            {onBack ? (
+              <button
+                onClick={onBack}
+                className="w-11 h-11 rounded-full bg-white/8 border border-white/10 flex items-center justify-center hover:bg-white/12 transition-colors"
+              >
+                <ArrowLeft size={20} className="text-white" />
+              </button>
+            ) : (
+              <div className="w-11 h-11" />
             )}
+
+            <div className="text-center">
+              <p className="text-white/55 text-sm font-medium">{username}</p>
+            </div>
+
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="w-11 h-11 rounded-full bg-white/8 border border-white/10 flex items-center justify-center hover:bg-white/12 transition-colors"
+              >
+                <MoreHorizontal size={20} className="text-white" />
+              </button>
+
+              {menuOpen && (
+                <div className="absolute right-0 top-12 w-44 bg-[#171717] border border-white/10 rounded-3xl shadow-2xl overflow-hidden z-40">
+                  <button
+                    className="w-full flex items-center gap-3 px-4 py-3 text-white text-sm hover:bg-white/5 transition-colors"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <Settings size={16} className="text-white/50" />
+                    Settings
+                  </button>
+
+                  <div className="border-t border-white/10" />
+
+                  <button
+                    className="w-full flex items-center gap-3 px-4 py-3 text-red-400 text-sm hover:bg-red-500/5 transition-colors"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onLogout();
+                    }}
+                  >
+                    <LogOut size={16} />
+                    Log out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Action buttons */}
-          {!isOwn && (
+          {/* Hero */}
+          <div className="mb-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                {uploadError && (
+                  <p className="text-red-400 text-xs mb-2">{uploadError}</p>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <h1 className="text-[30px] leading-none font-semibold tracking-tight">
+                    {displayName || user.username}
+                  </h1>
+
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                    style={{ backgroundColor: `${ACCENT}22`, color: ACCENT }}
+                  >
+                    ✓
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 mt-2 text-white/60 text-sm">
+                  <MapPin size={14} />
+                  <span>{selectedCity !== 'All' ? selectedCity : 'Kuala Lumpur'}</span>
+                </div>
+
+                <p className="mt-3 text-white/75 text-[15px] leading-6 max-w-[260px] whitespace-pre-line">
+                  {headline}
+                </p>
+
+                <div className="flex items-center gap-3 mt-4 text-white/65 text-sm">
+                  <div className="flex -space-x-2">
+                    <div className="w-7 h-7 rounded-full bg-white/20 border border-black" />
+                    <div className="w-7 h-7 rounded-full bg-white/10 border border-black" />
+                  </div>
+
+                  <span>{followerCount} Followers</span>
+
+                  <div className="w-1 h-1 rounded-full bg-white/30" />
+
+                  <div className="flex items-center gap-2 text-white/45">
+                    <span>◎</span>
+                    <span>◌</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => isOwn && !loading && fileInputRef.current?.click()}
+                  className={`relative w-[92px] h-[92px] rounded-full overflow-hidden border border-white/10 bg-white/10 flex items-center justify-center ${
+                    isOwn ? 'cursor-pointer' : 'cursor-default'
+                  }`}
+                >
+                  {profilePhoto ? (
+                    <img
+                      src={profilePhoto}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <svg viewBox="0 0 24 24" width="42" height="42" fill="white" opacity="0.5">
+                      <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
+                    </svg>
+                  )}
+                </button>
+
+                {isOwn && (
+                  <button
+                    onClick={() => !loading && fileInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-white text-black flex items-center justify-center border border-black shadow-lg"
+                  >
+                    {loading ? (
+                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Camera size={14} />
+                    )}
+                  </button>
+                )}
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoChange}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* CTA */}
+          {!isOwn ? (
             <div className="flex gap-2 mb-6">
-              <button className="flex-1 py-2 rounded-xl bg-white text-black text-sm font-bold hover:bg-white/90 transition-colors flex items-center justify-center gap-2">
-                <UserPlus size={14} />
+              <button className="flex-1 h-12 rounded-2xl bg-white text-black font-semibold flex items-center justify-center gap-2 hover:bg-white/90 transition-colors">
+                <UserPlus size={16} />
                 Follow
               </button>
-              <button className="flex-1 py-2 rounded-xl border border-white/20 text-white text-sm font-bold hover:bg-white/5 transition-colors flex items-center justify-center gap-2">
-                <Send size={14} />
+              <button className="flex-1 h-12 rounded-2xl border border-white/15 bg-white/5 text-white font-semibold flex items-center justify-center gap-2 hover:bg-white/8 transition-colors">
+                <Send size={16} />
                 Message
               </button>
             </div>
+          ) : (
+            <div className="mb-6">
+              <button className="w-full h-12 rounded-2xl bg-white text-black font-semibold hover:bg-white/90 transition-colors">
+                Edit profile
+              </button>
+            </div>
           )}
 
-          {/* Tabs */}
-          <div className="flex border-b border-white/10 mb-4">
-            <button className="flex-1 pb-3 text-white text-sm font-bold border-b-2 border-white">Threads</button>
-            <button className="flex-1 pb-3 text-white/40 text-sm font-bold">Replies</button>
-            <button className="flex-1 pb-3 text-white/40 text-sm font-bold">Media</button>
-            <button className="flex-1 pb-3 text-white/40 text-sm font-bold">Reposts</button>
-          </div>
 
-          {/* Posts */}
-          {myPosts.length === 0 ? (
+          {/* Grid */}
+          {filteredPosts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-white/30">
-              <MessageCircle size={32} className="mb-3 opacity-30" />
-              <p className="text-sm">No posts yet</p>
+              <Grid3X3 size={34} className="mb-3 opacity-40" />
+              <p className="text-sm">
+                {activeTab === 'photos'
+                  ? 'No photo posts yet'
+                  : activeTab === 'guides'
+                  ? 'No guides yet'
+                  : 'No places yet'}
+              </p>
             </div>
           ) : (
-            <div className="divide-y divide-white/5">
-              {myPosts.filter(p => !archivedIds.has(p.id)).map(place => (
-                <div key={place.id} className="py-4 flex gap-3">
-                  {profilePhoto ? (
-                    <img src={profilePhoto} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
-                  ) : (
-                    <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="white" opacity="0.5">
-                        <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-white text-sm">{displayName || user.username}</span>
+            <div className="grid grid-cols-2 gap-3">
+              {filteredPosts.map((place) => {
+                const coverImage = getPlaceImage(place);
+                const title = getPlaceTitle(place);
+                const subtitle = getPlaceSubtitle(place);
+                const category = inferCategoryFromPlace(place);
+                const city = inferCityFromPlace(place);
+                const menuOpenForCard = postMenuOpenId === place.id;
+
+                return (
+                  <div
+                    key={place.id}
+                    className="relative rounded-[28px] overflow-hidden bg-white/5 border border-white/8 aspect-[0.76]"
+                  >
+                    {coverImage ? (
+                      <img
+                        src={coverImage}
+                        alt={title}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/0" />
+                    )}
+
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+
+                    <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
+                      <div className="flex items-center gap-1 rounded-full bg-black/45 backdrop-blur-sm border border-white/10 px-2.5 py-1 text-[11px] text-white">
+                        <span>{category === 'Cafe' ? '☕' : category === 'Restaurant' ? '🍽️' : category === 'Stay' ? '🛏️' : '📍'}</span>
+                        <span className="truncate max-w-[80px]">{category}</span>
+                      </div>
+
                       <div className="relative">
                         <button
-                          onClick={() => setPostMenuOpenId(postMenuOpenId === place.id ? null : place.id)}
-                          className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+                          data-post-menu
+                          onClick={() =>
+                            setPostMenuOpenId(menuOpenForCard ? null : place.id)
+                          }
+                          className="w-10 h-10 rounded-full bg-black/45 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white"
                         >
-                          <MoreHorizontal size={16} className="text-white/40" />
+                          <MoreHorizontal size={16} />
                         </button>
-                        {postMenuOpenId === place.id && (
-                          <div className="absolute right-0 top-8 w-40 bg-[#1e1e1e] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-30">
+
+                        {menuOpenForCard && (
+                          <div className="absolute right-0 top-12 w-40 bg-[#171717] border border-white/10 rounded-3xl shadow-2xl overflow-hidden z-30">
                             <button
                               className="w-full flex items-center gap-3 px-4 py-3 text-white/80 text-sm hover:bg-white/5 transition-colors"
                               onClick={() => {
-                                setArchivedIds(prev => new Set([...prev, place.id]));
+                                setArchivedIds((prev) => new Set([...prev, place.id]));
                                 setPostMenuOpenId(null);
                               }}
                             >
                               <Archive size={14} className="text-white/50" />
                               Archive
                             </button>
+
                             <div className="border-t border-white/10" />
+
                             <button
-                              className="w-full flex items-center gap-3 px-4 py-3 text-red-500 text-sm hover:bg-red-500/5 transition-colors"
+                              className="w-full flex items-center gap-3 px-4 py-3 text-red-400 text-sm hover:bg-red-500/5 transition-colors"
                               onClick={() => {
                                 onDeletePlace?.(place.id);
                                 setPostMenuOpenId(null);
@@ -234,42 +454,52 @@ export const Profile: React.FC<ProfileProps> = ({ user, onLogout, isOwn = true, 
                         )}
                       </div>
                     </div>
-                    {place.name && (
-                      <p className="text-white font-semibold text-sm">{place.name}</p>
-                    )}
-                    {place.description && (
-                      <p className="text-white/80 text-sm mt-1 leading-normal">{place.description}</p>
-                    )}
-                    {place.address && (
-                      <div className="flex items-center gap-1 mt-1 text-white/40 text-xs">
-                        <MapPin size={11} />
-                        <span className="truncate">{place.address}</span>
-                      </div>
-                    )}
-                    {place.images.length > 0 && (
-                      <div className="flex gap-2 mt-2 overflow-x-auto no-scrollbar">
-                        {place.images.map((img, i) => (
-                          <img key={i} src={img} className="w-40 h-40 rounded-xl object-cover border border-white/10 flex-shrink-0" referrerPolicy="no-referrer" />
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex gap-4 mt-3 text-white/40">
-                      <div className="flex items-center gap-1.5">
-                        <Heart size={16} />
-                        <span className="text-xs">{place.likedBy.length}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <MessageCircle size={16} />
-                        <span className="text-xs">{place.comments.length}</span>
+
+                    <div className="absolute left-3 right-3 bottom-3">
+                      <p className="text-white text-[15px] font-semibold leading-tight line-clamp-2">
+                        {title}
+                      </p>
+
+                      <p className="text-white/65 text-[12px] mt-1 truncate">
+                        {city}
+                      </p>
+
+                      <p className="text-white/78 text-[12px] mt-1 line-clamp-2">
+                        {subtitle}
+                      </p>
+
+                      <div className="flex items-center gap-3 mt-3 text-white/70 text-[12px]">
+                        <div className="flex items-center gap-1">
+                          <MessageCircle size={13} />
+                          <span>{place.comments?.length || 0}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <span>♡</span>
+                          <span>{place.likedBy?.length || 0}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
-        <div className="h-24"></div>
+      </div>
+
+      {/* Floating bottom controls */}
+      <div className="absolute left-0 right-0 bottom-5 px-4 pointer-events-none">
+        <div className="flex items-center justify-center gap-3">
+          <button className="pointer-events-auto h-14 px-6 rounded-full bg-[#3b3b3b]/90 backdrop-blur-xl border border-white/10 text-white flex items-center gap-2 shadow-2xl">
+            <Map size={18} />
+            <span className="text-sm font-medium">Map</span>
+          </button>
+
+          <button className="pointer-events-auto w-14 h-14 rounded-full bg-[#2f2f2f]/90 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center shadow-2xl">
+            <SlidersHorizontal size={18} />
+          </button>
+        </div>
       </div>
     </div>
   );
