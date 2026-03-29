@@ -18,6 +18,8 @@ body {
 }
 
 #root {
+  border-radius: 12px 12px 0 0;
+  padding-top: 18px;
   max-width: 640px;
   margin: 0 auto;
   height: 100vh;

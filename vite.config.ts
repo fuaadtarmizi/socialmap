@@ -1,23 +1,23 @@
 import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, '.', '');
-    return {
-      server: {
-        port: 3000,
-        host: '0.0.0.0',
-      },
-      plugins: [react(), tailwindcss()],
-      optimizeDeps: {
-        include: ['mapbox-gl'],
-      },
-      resolve: {
-        alias: {
-          '@': path.resolve(__dirname, '.'),
-        }
-      }
-    };
+export default defineConfig({
+  server: {
+    port: 3000,
+    host: '0.0.0.0',
+    proxy: {
+      '/api': 'http://localhost:5000',
+    },
+  },
+  plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    include: ['mapbox-gl'],
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, '.'),
+    },
+  },
 });

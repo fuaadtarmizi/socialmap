@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { login } from '../lib/api';
 
 interface LoginProps {
   onLogin: (user: { id: string; username: string; email: string }, token: string) => void;
@@ -19,18 +19,12 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onGoSignup }) => {
     const password = (form.elements.namedItem('password') as HTMLInputElement).value;
 
     try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-      if (authError) {
-        setError(authError.message);
-        return;
-      }
-      const session = data.session!;
-      const supaUser = data.user!;
-      const username = supaUser.user_metadata?.username || supaUser.email?.split('@')[0] || 'User';
-      localStorage.setItem('lumina_token', session.access_token);
-      onLogin({ id: supaUser.id, username, email: supaUser.email! }, session.access_token);
-    } catch {
-      setError('Network error. Please try again.');
+      const { token, user } = await login(email, password);
+      localStorage.setItem('lumina_token', token);
+      localStorage.setItem('lumina_user', JSON.stringify(user));
+      onLogin(user, token);
+    } catch (err: any) {
+      setError(err.message || 'Network error. Please try again.');
     } finally {
       setLoading(false);
     }

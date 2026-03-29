@@ -489,7 +489,7 @@ const username = `@${user.username.toLowerCase()}`;
       </div>
 
       {/* Floating bottom controls */}
-      <div className="absolute left-0 right-0 bottom-5 px-4 pointer-events-none">
+      {/* <div className="absolute left-0 right-0 bottom-5 px-4 pointer-events-none">
         <div className="flex items-center justify-center gap-3">
           <button className="pointer-events-auto h-14 px-6 rounded-full bg-[#3b3b3b]/90 backdrop-blur-xl border border-white/10 text-white flex items-center gap-2 shadow-2xl">
             <Map size={18} />
@@ -500,7 +500,7 @@ const username = `@${user.username.toLowerCase()}`;
             <SlidersHorizontal size={18} />
           </button>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

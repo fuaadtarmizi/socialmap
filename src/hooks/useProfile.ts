@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { getProfile, updateProfilePhoto, updateBio, updateDisplayName } from '../lib/api';
 import { AuthUser } from './useAuth';
 
 export interface ProfileData {
@@ -17,87 +17,69 @@ export const useProfile = (user: AuthUser | null) => {
   const [loading, setLoading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Fetch profile from Supabase on mount / user change
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from('profiles')
-      .select('display_name, bio, avatar_url')
-      .eq('id', user.id)
-      .single()
-      .then(({ data }) => {
-        if (!data) return;
-        const avatarUrl = data.avatar_url || localStorage.getItem(`profile_photo_${user.id}`);
-        if (avatarUrl) localStorage.setItem(`profile_photo_${user.id}`, avatarUrl);
-        setProfileData({
-          displayName: data.display_name || user.username,
-          bio: data.bio || '',
-          avatarUrl,
-        });
+    getProfile(user.id).then((data) => {
+      if (!data) return;
+      const avatarUrl = data.avatar_url || localStorage.getItem(`profile_photo_${user.id}`);
+      if (avatarUrl) localStorage.setItem(`profile_photo_${user.id}`, avatarUrl);
+      setProfileData({
+        displayName: data.display_name || user.username,
+        bio: data.bio || '',
+        avatarUrl: avatarUrl || null,
       });
+    }).catch(() => {});
   }, [user?.id]);
 
   const updatePhoto = async (file: File): Promise<string | null> => {
     if (!user) return null;
+    const token = localStorage.getItem('lumina_token');
+    if (!token) return null;
     setLoading(true);
     setUploadError(null);
 
-    const ext = file.name.split('.').pop() || 'jpg';
-    const path = `${user.id}/avatar.${ext}`;
-
-    // Remove existing file first to avoid upsert issues
-    const { error: removeError } = await supabase.storage.from('avatars').remove([path]);
-    console.log('[DEBUG] remove error:', removeError);
-
-    const { error } = await supabase.storage
-      .from('avatars')
-      .upload(path, file);
-
-    console.log('[DEBUG] upload error:', error);
-    if (error) {
-      console.error('Avatar upload error:', error);
-      setUploadError(error.message);
-      setLoading(false);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const { avatarUrl } = await updateProfilePhoto(token, base64, ext);
+      localStorage.setItem(`profile_photo_${user.id}`, avatarUrl);
+      setProfileData(prev => ({ ...prev, avatarUrl }));
+      return avatarUrl;
+    } catch (err: any) {
+      setUploadError(err.message || 'Upload failed');
       return null;
+    } finally {
+      setLoading(false);
     }
-
-    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
-    console.log('[DEBUG] publicUrl:', data.publicUrl);
-    const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
-
-    localStorage.setItem(`profile_photo_${user.id}`, avatarUrl);
-    setProfileData(prev => ({ ...prev, avatarUrl }));
-
-    const { error: upsertError } = await supabase.from('profiles').upsert({
-      id: user.id,
-      username: user.username,
-      avatar_url: data.publicUrl,
-    });
-    console.log('[DEBUG] upsert error:', upsertError);
-
-    setLoading(false);
-    return avatarUrl;
   };
 
-  const updateBio = async (bio: string) => {
+  const updateBioFn = async (bio: string) => {
     if (!user) return;
+    const token = localStorage.getItem('lumina_token');
+    if (!token) return;
     setProfileData(prev => ({ ...prev, bio }));
-    await supabase.from('profiles').upsert({
-      id: user.id,
-      username: user.username,
-      bio,
-    });
+    await updateBio(token, bio).catch(() => {});
   };
 
-  const updateDisplayName = async (displayName: string) => {
+  const updateDisplayNameFn = async (displayName: string) => {
     if (!user) return;
+    const token = localStorage.getItem('lumina_token');
+    if (!token) return;
     setProfileData(prev => ({ ...prev, displayName }));
-    await supabase.from('profiles').upsert({
-      id: user.id,
-      username: user.username,
-      display_name: displayName,
-    });
+    await updateDisplayName(token, displayName).catch(() => {});
   };
 
-  return { profileData, loading, uploadError, updatePhoto, updateBio, updateDisplayName };
+  return {
+    profileData,
+    loading,
+    uploadError,
+    updatePhoto,
+    updateBio: updateBioFn,
+    updateDisplayName: updateDisplayNameFn,
+  };
 };

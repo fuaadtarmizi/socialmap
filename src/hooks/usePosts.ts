@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { getPosts, createPost, deletePost } from '../lib/api';
 import { SavedPlace, Comment, formatCount } from '../components/PostingCard';
 import { AuthUser } from './useAuth';
 
@@ -26,19 +26,25 @@ interface UsePostsParams {
   setIsFormOpen: (v: boolean) => void;
 }
 
-const rowToPlace = (row: any): SavedPlace => ({
-  id: row.id,
-  userId: row.user_id,
-  username: row.username,
-  avatar: row.avatar || null,
-  name: row.name || '',
-  description: row.description || '',
-  address: row.address || '',
-  lat: row.lat,
-  lng: row.lng,
-  images: row.images || [],
-  likedBy: row.liked_by || [],
-  comments: [],
+const apiToPlace = (p: any): SavedPlace => ({
+  id: p.id,
+  userId: p.userId,
+  username: p.username,
+  avatar: p.avatar || null,
+  name: p.name || '',
+  description: p.description || '',
+  address: p.address || '',
+  lat: p.lat,
+  lng: p.lng,
+  images: p.images || [],
+  likedBy: p.likedBy || [],
+  comments: (p.comments || []).map((c: any) => ({
+    id: c.id,
+    userId: c.userId,
+    username: c.username,
+    text: c.text,
+    createdAt: c.createdAt,
+  })),
   viewedBy: [],
 });
 
@@ -64,71 +70,12 @@ export const usePosts = ({
   useEffect(() => { tokenRef.current = token; }, [token]);
   useEffect(() => { savedPlacesRef.current = savedPlaces; }, [savedPlaces]);
 
-  // Load posts + realtime subscription
+  // Load posts on mount
   useEffect(() => {
     if (!user) return;
-
-    // Initial fetch — also resolve missing avatars from profiles
-    supabase
-      .from('posts')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .then(async ({ data, error }) => {
-        if (error) { console.error('Failed to load posts:', error); return; }
-        const rows = data || [];
-
-        // Fetch avatars from profiles for ALL post authors (authoritative source)
-        const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
-        let profileMap: Record<string, string> = {};
-        if (userIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, avatar_url')
-            .in('id', userIds);
-          (profiles || []).forEach(p => {
-            if (p.avatar_url) profileMap[p.id] = p.avatar_url;
-          });
-          console.log('[DEBUG] userIds:', userIds);
-          console.log('[DEBUG] profileMap:', profileMap);
-        }
-
-        setSavedPlaces(rows.map(r => rowToPlace({
-          ...r,
-          avatar: profileMap[r.user_id] || r.avatar || null,
-        })));
-      });
-
-    // Realtime: new post from any user appears instantly
-    const channel = supabase
-      .channel('public:posts')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'posts' },
-        async (payload) => {
-          console.log('Realtime INSERT:', payload.new);
-          const row = payload.new;
-          let avatar = row.avatar;
-          if (!avatar && row.user_id) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('avatar_url')
-              .eq('id', row.user_id)
-              .single();
-            avatar = profile?.avatar_url || null;
-          }
-          const newPlace = rowToPlace({ ...row, avatar });
-          setSavedPlaces(prev => {
-            if (prev.find(p => p.id === newPlace.id)) return prev;
-            return [newPlace, ...prev];
-          });
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') console.log('Realtime subscribed to posts');
-        if (status === 'CHANNEL_ERROR') console.error('Realtime channel error');
-      });
-
-    return () => { supabase.removeChannel(channel); };
+    getPosts()
+      .then((posts: any[]) => setSavedPlaces(posts.map(apiToPlace)))
+      .catch((err: any) => console.error('Failed to load posts:', err));
   }, [user]);
 
   const handleLike = async (placeId: string) => {
@@ -155,7 +102,6 @@ export const usePosts = ({
       });
     }
 
-    // Update DOM in open popup
     const likeCountEl = document.getElementById(`like-count-${placeId}`);
     const likeIconEl = document.getElementById(`like-icon-${placeId}`);
     const place = savedPlacesRef.current.find(p => p.id === placeId);
@@ -222,46 +168,29 @@ export const usePosts = ({
       alert("Please locate the address first.");
       return;
     }
-    if (!user) {
+    if (!user || !token) {
       alert("You must be logged in to save a place.");
       return;
     }
     try {
-      const { data, error } = await supabase
-        .from('posts')
-        .insert([{
-          user_id: user.id,
-          username: user.username || user.email || 'user',
-          avatar: avatarUrl || '',
-          name: formAddress,
-          description: formDescription,
-          address: formAddress,
-          lat: previewCoords.lat,
-          lng: previewCoords.lng,
-          images: formImages,
-          liked_by: [],
-          views: 0,
-        }])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Post insert error:', error);
-        alert('Failed to save: ' + error.message);
-        return;
-      }
-
-      console.log('Post inserted:', data);
-      setSavedPlaces(prev => [rowToPlace(data), ...prev]);
+      const post = await createPost(token, {
+        name: formAddress,
+        description: formDescription,
+        address: formAddress,
+        lat: previewCoords.lat,
+        lng: previewCoords.lng,
+        images: formImages,
+      });
+      setSavedPlaces(prev => [apiToPlace(post), ...prev]);
       setFormAddress('');
       setFormDescription('');
       setFormImages([]);
       setPreviewCoords(null);
       setIsFormOpen(false);
       alert("Place saved successfully!");
-    } catch (err) {
+    } catch (err: any) {
       console.error('Save place error:', err);
-      alert("Network error. Please try again.");
+      alert(err.message || "Network error. Please try again.");
     }
   };
 
@@ -285,13 +214,13 @@ export const usePosts = ({
 
   const handleDeletePlace = async (placeId: string) => {
     setSavedPlaces(prev => prev.filter(p => p.id !== placeId));
-    const { error } = await supabase.from('posts').delete().eq('id', placeId);
-    if (error) {
-      console.error('Failed to delete post:', error);
-      setSavedPlaces(prev => {
-        const deleted = savedPlacesRef.current.find(p => p.id === placeId);
-        return deleted ? [deleted, ...prev] : prev;
-      });
+    if (!tokenRef.current) return;
+    try {
+      await deletePost(tokenRef.current, placeId);
+    } catch (err) {
+      console.error('Failed to delete post:', err);
+      const deleted = savedPlacesRef.current.find(p => p.id === placeId);
+      if (deleted) setSavedPlaces(prev => [deleted, ...prev]);
     }
   };
 

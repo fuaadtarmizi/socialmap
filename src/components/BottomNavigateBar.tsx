@@ -32,12 +32,7 @@ export const BottomNavigateBar: React.FC<BottomNavigateBarProps> = ({
             <MessageCircle size={25} strokeWidth={activeTab === 'inbox' ? 2.5 : 2} />
           </button>
 
-          <button
-            onClick={() => setIsFormOpen(!isFormOpen)}
-            className="w-9 h-9 bg-[#444446] rounded-xl flex items-center justify-center text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:scale-105 transition-transform border-2 border-blue-400/30"
-          >
-            <Plus size={25} strokeWidth={3} />
-          </button>
+          
 
           <button
             onClick={() => setActiveTab('activity')}

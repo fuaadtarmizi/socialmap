@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { logout } from '../lib/api';
 
 export interface AuthUser {
   id: string;
@@ -12,37 +12,20 @@ export const useAuth = () => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('lumina_token'));
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Auth: restore session on mount, keep in sync with Supabase
   useEffect(() => {
-    // Restore existing session (survives page refresh)
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) console.error('getSession error:', error);
-      if (session) {
-        const u = session.user;
-        const username = u.user_metadata?.username || u.email?.split('@')[0] || 'User';
-        setUser({ id: u.id, username, email: u.email! });
-        setToken(session.access_token);
-        localStorage.setItem('lumina_token', session.access_token);
-      }
-      setAuthLoading(false);
-    });
-
-    // Stay in sync: login, logout, token refresh
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        const u = session.user;
-        const username = u.user_metadata?.username || u.email?.split('@')[0] || 'User';
-        setUser({ id: u.id, username, email: u.email! });
-        setToken(session.access_token);
-        localStorage.setItem('lumina_token', session.access_token);
-      } else {
-        setUser(null);
-        setToken(null);
+    const storedToken = localStorage.getItem('lumina_token');
+    const storedUser = localStorage.getItem('lumina_user');
+    if (storedToken && storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser) as AuthUser;
+        setUser(parsed);
+        setToken(storedToken);
+      } catch {
         localStorage.removeItem('lumina_token');
+        localStorage.removeItem('lumina_user');
       }
-    });
-
-    return () => subscription.unsubscribe();
+    }
+    setAuthLoading(false);
   }, []);
 
   const handleAuthSuccess = (userData: AuthUser, newToken: string) => {
@@ -51,8 +34,10 @@ export const useAuth = () => {
   };
 
   const handleLogout = () => {
-    supabase.auth.signOut();
+    const currentToken = localStorage.getItem('lumina_token');
+    if (currentToken) logout(currentToken);
     localStorage.removeItem('lumina_token');
+    localStorage.removeItem('lumina_user');
     setToken(null);
     setUser(null);
   };

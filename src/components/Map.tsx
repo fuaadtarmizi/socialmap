@@ -66,6 +66,7 @@ export function placePopupHtml(place: SavedPlace): string {
         </div>
       </div>
     </div>
+    
   `;
 }
 
