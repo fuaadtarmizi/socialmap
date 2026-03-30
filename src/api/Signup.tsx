@@ -81,6 +81,23 @@ export const Signup: React.FC<SignupProps> = ({ onSignup, onGoLogin }) => {
             Already have an account? Log in
           </button>
         </div>
+        <div className="flex gap-4">
+          <button className="bg-black w-full py-2 rounded-md flex items-center justify-center hover:bg-black/80  ">
+            <img
+            className="w-6 h-6"
+            src="./images/apple.svg" 
+            alt="Apple Login" 
+            />
+          </button>
+          <button className="bg-white w-full py-2 rounded-md flex items-center justify-center hover:bg-white/80">
+            <img
+            className="w-6 h-6"
+            src="./images/google.png" 
+            alt="Google Login" 
+            />
+          </button>
+          
+        </div>
       </div>
     </div>
   );
