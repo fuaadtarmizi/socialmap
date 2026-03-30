@@ -84,14 +84,14 @@ export const Signup: React.FC<SignupProps> = ({ onSignup, onGoLogin }) => {
         <div className="flex gap-4">
           <button className="bg-black w-full py-2 rounded-sm flex items-center justify-center hover:bg-black/80  ">
             <img
-            className="w-7 h-7"
+            className="w-6 h-6"
             src="./images/apple.svg" 
             alt="Apple Login" 
             />
           </button>
           <button className="bg-white w-full py-2 rounded-sm flex items-center justify-center hover:bg-white/80">
             <img
-            className="w-7 h-7"
+            className="w-6 h-6"
             src="./images/google.png" 
             alt="Google Login" 
             />
