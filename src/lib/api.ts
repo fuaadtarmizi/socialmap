@@ -30,6 +30,28 @@ export async function signup(email: string, password: string, username: string) 
   return data as { token: string; user: { id: string; email: string; username: string } };
 }
 
+export async function googleAuth(code: string) {
+  const res = await fetch(`${BASE_URL}/api/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Google sign in failed');
+  return data as { token: string; user: { id: string; email: string; username: string } };
+}
+
+export async function appleAuth(identityToken: string, user?: { name?: { firstName?: string; lastName?: string }; email?: string }) {
+  const res = await fetch(`${BASE_URL}/api/auth/apple`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identityToken, user }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Apple sign in failed');
+  return data as { token: string; user: { id: string; email: string; username: string } };
+}
+
 export async function logout(token: string) {
   await fetch(`${BASE_URL}/api/auth/logout`, {
     method: 'POST',

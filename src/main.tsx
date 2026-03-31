@@ -22,6 +22,7 @@ import { SplashScreen } from './components/SplashScreen';
 import { useMapBuildings } from './components/map/UImap';
 import ButtonCreate from './components/ButtonCreate';
 
+
 /**
  * Social Map - Enhanced with Image Support
  * Users can now add 3 images to each place they save.
@@ -139,6 +140,8 @@ const App = () => {
   return (
     <>
       <SplashScreen isReady={!authLoading} />
+
+      
 
       {!authLoading && !user && (
         authPage === 'signup'
@@ -291,6 +294,8 @@ const App = () => {
           onSetCommentingOnPlace={setter => { setCommentingOnPlaceRef.current = setter; }}
           onViewProfile={handleViewProfile}
         />
+
+        
 
         {/* BOTTOM UI CONTAINER */}
         <div className="absolute bottom-0 left-0 right-0 z-40 flex flex-col pointer-events-none">
