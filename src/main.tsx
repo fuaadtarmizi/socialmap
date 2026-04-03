@@ -21,6 +21,7 @@ import { SearchBar } from './components/SearchBar';
 import { SplashScreen } from './components/SplashScreen';
 import { useMapBuildings } from './components/map/UImap';
 import ButtonCreate from './components/ButtonCreate';
+import { ResetPassword } from './components/ResetPassword';
 
 
 /**
@@ -36,6 +37,12 @@ import ButtonCreate from './components/ButtonCreate';
 const App = () => {
   const { user, token, authLoading, handleAuthSuccess, handleLogout } = useAuth();
   const [authPage, setAuthPage] = useState<'login' | 'signup'>('login');
+
+  // Handle password reset link from email (?reset_token=xxx)
+  const resetToken = new URLSearchParams(window.location.search).get('reset_token');
+  if (resetToken) {
+    return <ResetPassword token={resetToken} onDone={() => setAuthPage('login')} />;
+  }
   const [profilePhoto, setProfilePhoto] = useState<string | null>(
     () => {
       const stored = localStorage.getItem('lumina_token');
@@ -344,7 +351,10 @@ const App = () => {
   );
 };
 
-const root = createRoot(document.getElementById('root')!);
+const container = document.getElementById('root')!;
+const existingRoot = (container as any).__reactRoot;
+const root = existingRoot ?? createRoot(container);
+(container as any).__reactRoot = root;
 root.render(<App />);
 
 // Register Service Worker for PWA

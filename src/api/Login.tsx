@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { login } from '../lib/api';
+import { ForgotPassword } from '../components/ForgotPassword';
 
 interface LoginProps {
   onLogin: (user: { id: string; username: string; email: string }, token: string) => void;
@@ -9,6 +10,9 @@ interface LoginProps {
 export const Login: React.FC<LoginProps> = ({ onLogin, onGoSignup }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+
+  if (showForgot) return <ForgotPassword onBack={() => setShowForgot(false)} />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +67,16 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onGoSignup }) => {
           >
             {loading ? 'Logging in...' : 'Log in'}
           </button>
+
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => setShowForgot(true)}
+              className="text-white/40 text-sm hover:text-white transition-colors"
+            >
+              Forgot password?
+            </button>
+          </div>
         </form>
 
         <div className="text-center">

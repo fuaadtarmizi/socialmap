@@ -52,6 +52,26 @@ export async function appleAuth(identityToken: string, user?: { name?: { firstNa
   return data as { token: string; user: { id: string; email: string; username: string } };
 }
 
+export async function forgotPassword(email: string) {
+  const res = await fetch(`${BASE_URL}/api/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Failed to send reset email');
+}
+
+export async function resetPassword(token: string, password: string) {
+  const res = await fetch(`${BASE_URL}/api/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Failed to reset password');
+}
+
 export async function logout(token: string) {
   await fetch(`${BASE_URL}/api/auth/logout`, {
     method: 'POST',
