@@ -1,15 +1,9 @@
-const CACHE_NAME = 'lumina-maps-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/src/main.tsx',
-  '/manifest.json'
-];
+const CACHE_NAME = 'social-map-v1';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      return cache.addAll(['/', '/manifest.json']);
     })
   );
 });
