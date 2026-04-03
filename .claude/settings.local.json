@@ -12,7 +12,8 @@
       "Bash(grep -r \"avatar\\\\|pin\\\\|place\" 'C:\\\\Users\\\\User\\\\OneDrive\\\\Desktop\\\\social maps\\\\socialmapApp\\\\src' --include=*.css)",
       "Bash(find 'C:\\\\Users\\\\User\\\\OneDrive\\\\Desktop\\\\social maps\\\\socialmapApp' -name *.css -o -name *.scss)",
       "Bash(curl:*)",
-      "Bash(netstat -ano)"
+      "Bash(netstat -ano)",
+      "Bash(npm i:*)"
     ]
   }
 }
