@@ -37,20 +37,17 @@ import { ResetPassword } from './components/ResetPassword';
 const App = () => {
   const { user, token, authLoading, handleAuthSuccess, handleLogout } = useAuth();
   const [authPage, setAuthPage] = useState<'login' | 'signup'>('login');
-
-  // Handle password reset link from email (?reset_token=xxx)
-  const resetToken = new URLSearchParams(window.location.search).get('reset_token');
-  if (resetToken) {
-    return <ResetPassword token={resetToken} onDone={() => setAuthPage('login')} />;
-  }
-  const [profilePhoto, setProfilePhoto] = useState<string | null>(
-    () => {
-      const stored = localStorage.getItem('lumina_token');
-      if (!stored) return null;
-      // Will be updated once user loads
-      return null;
-    }
-  );
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [formAddress, setFormAddress] = useState('');
+  const [formDescription, setFormDescription] = useState('');
+  const [formImages, setFormImages] = useState<string[]>([]);
+  const [username, setUsername] = useState('WanderlustLara');
+  const [previewCoords, setPreviewCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('near');
+  const [viewingProfile, setViewingProfile] = useState<{ id: string; username: string; avatar?: string | null } | null>(null);
+  const setCommentingOnPlaceRef = useRef<((id: string | null) => void) | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -58,21 +55,11 @@ const App = () => {
     if (cached) setProfilePhoto(cached);
   }, [user?.id]);
 
-  // Form State
-  const [formAddress, setFormAddress] = useState('');
-  const [formDescription, setFormDescription] = useState('');
-  const [formImages, setFormImages] = useState<string[]>([]);
-  const [username, setUsername] = useState('WanderlustLara');
-  const [previewCoords, setPreviewCoords] = useState<{ lat: number; lng: number } | null>(null);
-  
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('map');
-  const [viewingProfile, setViewingProfile] = useState<{ id: string; username: string; avatar?: string | null } | null>(null);
-
   const handleViewProfile = (userId: string, username: string, avatar?: string | null) => {
     setViewingProfile({ id: userId, username, avatar });
     setActiveTab('profile');
   };
+
   const {
     activities,
     activityFilter,
@@ -109,10 +96,6 @@ const App = () => {
     setIsFormOpen,
   });
 
-  
-  const setCommentingOnPlaceRef = useRef<((id: string | null) => void) | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const { mapRef, location, pointedPlaceId, cardPos } = useMap({
     user,
     savedPlaces,
@@ -142,7 +125,11 @@ const App = () => {
     setIsFormOpen(false);
   };
 
-
+  // Handle password reset link from email (?reset_token=xxx)
+  const resetToken = new URLSearchParams(window.location.search).get('reset_token');
+  if (resetToken) {
+    return <ResetPassword token={resetToken} onDone={() => setAuthPage('login')} />;
+  }
 
   return (
     <>
@@ -163,6 +150,18 @@ const App = () => {
         
 
 
+
+        {/* REFRESH BUTTON - TOP RIGHT (map/home only) */}
+        {(activeTab === 'map' || activeTab === 'near') && <button
+          onClick={() => window.location.reload()}
+          className="absolute top-4 left-4 z-[9999] w-9 h-9 flex items-center justify-center rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-white hover:bg-black/80 transition-all active:scale-90"
+          title="Refresh"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 4v6h-6"/>
+            <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+          </svg>
+        </button>}
 
         {/* SEARCH BAR */}
         {(activeTab === 'map' || activeTab === 'near') && (

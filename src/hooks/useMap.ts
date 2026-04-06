@@ -56,6 +56,7 @@ export const useMap = ({
   const savedPlacesRef = useRef<SavedPlace[]>([]);
   const previewMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
+  const [mapReady, setMapReady] = useState(false);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [pointedPlaceId, setPointedPlaceId] = useState<string | null>(null);
   const [cardPos, setCardPos] = useState<{ x: number; y: number } | null>(null);
@@ -89,6 +90,7 @@ export const useMap = ({
         maxZoom: 18,
         attributionControl: false,
       });
+      setMapReady(true);
 
       const updatePitch = () => {
         const map = mapRef.current!
@@ -154,6 +156,7 @@ export const useMap = ({
 
     return () => {
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+      setMapReady(false);
     };
   }, [user]);
 
@@ -219,7 +222,7 @@ export const useMap = ({
 
       savedMarkersRef.current.push(marker);
     });
-  }, [savedPlaces, pointedPlaceId, profilePhoto]);
+  }, [savedPlaces, pointedPlaceId, profilePhoto, mapReady]);
 
   return { mapRef, location, pointedPlaceId, cardPos };
 };

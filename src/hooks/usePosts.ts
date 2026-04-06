@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getPosts, createPost, deletePost } from '../lib/api';
-import { SavedPlace, Comment, formatCount } from '../components/PostingCard';
+import { SavedPlace, Comment } from '../components/PostingCard';
 import { AuthUser } from './useAuth';
 
 interface ActivityPayload {
@@ -70,13 +70,12 @@ export const usePosts = ({
   useEffect(() => { tokenRef.current = token; }, [token]);
   useEffect(() => { savedPlacesRef.current = savedPlaces; }, [savedPlaces]);
 
-  // Load posts on mount
+  // Load posts on mount — getPosts is public, no auth required
   useEffect(() => {
-    if (!user) return;
     getPosts()
       .then((posts: any[]) => setSavedPlaces(posts.map(apiToPlace)))
       .catch((err: any) => console.error('Failed to load posts:', err));
-  }, [user]);
+  }, []);
 
   const handleLike = async (placeId: string) => {
     if (!user) return;
@@ -100,17 +99,6 @@ export const usePosts = ({
         avatar: place?.avatar || null,
         content: `liked "${place?.name || 'a post'}"`,
       });
-    }
-
-    const likeCountEl = document.getElementById(`like-count-${placeId}`);
-    const likeIconEl = document.getElementById(`like-icon-${placeId}`);
-    const place = savedPlacesRef.current.find(p => p.id === placeId);
-    const alreadyLiked = place?.likedBy.includes(userId) ?? false;
-    if (likeCountEl) likeCountEl.textContent = formatCount(newLikedBy.length || (place ? place.likedBy.length + (alreadyLiked ? -1 : 1) : 0));
-    if (likeIconEl) {
-      const willBeLiked = !alreadyLiked;
-      likeIconEl.setAttribute('fill', willBeLiked ? '#ff3366' : 'none');
-      likeIconEl.setAttribute('stroke', willBeLiked ? '#ff3366' : 'white');
     }
 
     if (!tokenRef.current) return;

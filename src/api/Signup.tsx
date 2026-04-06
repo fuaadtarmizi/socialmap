@@ -36,6 +36,7 @@ interface SignupProps {
 export const Signup: React.FC<SignupProps> = ({ onSignup, onGoLogin }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   const handleAppleSignIn = async () => {
     try {
@@ -94,8 +95,16 @@ export const Signup: React.FC<SignupProps> = ({ onSignup, onGoLogin }) => {
 
     try {
       const { token, user } = await signup(email, password, username);
-      localStorage.setItem('lumina_token', token);
-      localStorage.setItem('lumina_user', JSON.stringify(user));
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem('lumina_token', token);
+      storage.setItem('lumina_user', JSON.stringify(user));
+      if (rememberMe) {
+        localStorage.setItem('lumina_saved_email', email);
+        localStorage.setItem('lumina_saved_password', password);
+      } else {
+        localStorage.removeItem('lumina_saved_email');
+        localStorage.removeItem('lumina_saved_password');
+      }
       onSignup(user, token);
     } catch (err: any) {
       setError(err.message || 'Network error. Please try again.');
@@ -134,6 +143,27 @@ export const Signup: React.FC<SignupProps> = ({ onSignup, onGoLogin }) => {
             required
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
           />
+
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <div
+              onClick={() => setRememberMe(v => !v)}
+              className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                rememberMe ? 'bg-white border-white' : 'bg-transparent border-white/30'
+              }`}
+            >
+              {rememberMe && (
+                <svg viewBox="0 0 12 10" width="12" height="10" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 5l3 3 7-7" />
+                </svg>
+              )}
+            </div>
+            <span
+              onClick={() => setRememberMe(v => !v)}
+              className="text-white/50 text-sm"
+            >
+              Remember me
+            </span>
+          </label>
 
           {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 

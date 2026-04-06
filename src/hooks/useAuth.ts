@@ -7,22 +7,30 @@ export interface AuthUser {
   email: string;
 }
 
+const getStorage = () =>
+  localStorage.getItem('lumina_token')
+    ? localStorage
+    : sessionStorage;
+
 export const useAuth = () => {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('lumina_token'));
+  const [token, setToken] = useState<string | null>(
+    localStorage.getItem('lumina_token') || sessionStorage.getItem('lumina_token')
+  );
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('lumina_token');
-    const storedUser = localStorage.getItem('lumina_user');
+    const storage = getStorage();
+    const storedToken = storage.getItem('lumina_token');
+    const storedUser = storage.getItem('lumina_user');
     if (storedToken && storedUser) {
       try {
         const parsed = JSON.parse(storedUser) as AuthUser;
         setUser(parsed);
         setToken(storedToken);
       } catch {
-        localStorage.removeItem('lumina_token');
-        localStorage.removeItem('lumina_user');
+        storage.removeItem('lumina_token');
+        storage.removeItem('lumina_user');
       }
     }
     setAuthLoading(false);
@@ -34,10 +42,13 @@ export const useAuth = () => {
   };
 
   const handleLogout = () => {
-    const currentToken = localStorage.getItem('lumina_token');
+    const storage = getStorage();
+    const currentToken = storage.getItem('lumina_token');
     if (currentToken) logout(currentToken);
     localStorage.removeItem('lumina_token');
     localStorage.removeItem('lumina_user');
+    sessionStorage.removeItem('lumina_token');
+    sessionStorage.removeItem('lumina_user');
     setToken(null);
     setUser(null);
   };
