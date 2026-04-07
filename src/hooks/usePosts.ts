@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { getPosts, createPost, deletePost, addComment, likePost } from '../lib/api';
 import { SavedPlace, Comment } from '../components/PostingCard';
 import { AuthUser } from './useAuth';
+
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 interface ActivityPayload {
   type: 'follow' | 'like' | 'reply' | 'repost';
@@ -28,7 +31,7 @@ interface UsePostsParams {
 
 const apiToPlace = (p: any): SavedPlace => ({
   id: p.id,
-  userId: p.userId,
+  userId: p.userId ?? p.user_id,
   username: p.username,
   avatar: p.avatar || null,
   name: p.name || '',
@@ -36,16 +39,17 @@ const apiToPlace = (p: any): SavedPlace => ({
   address: p.address || '',
   lat: p.lat,
   lng: p.lng,
-  images: p.images || [],
-  likedBy: p.likedBy || [],
+  images: Array.isArray(p.images) ? p.images : (typeof p.images === 'string' ? JSON.parse(p.images) : []),
+  likedBy: p.likedBy ?? p.liked_by ?? [],
   comments: (p.comments || []).map((c: any) => ({
     id: c.id,
-    userId: c.userId,
+    userId: c.userId ?? c.user_id,
     username: c.username,
     text: c.text,
-    createdAt: c.createdAt,
+    createdAt: c.createdAt ?? c.created_at,
   })),
-  viewedBy: [],
+  // viewedBy length is used as view count display; fill with DB views count
+  viewedBy: new Array(p.views || 0).fill(''),
 });
 
 export const usePosts = ({
@@ -66,20 +70,64 @@ export const usePosts = ({
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const savedPlacesRef = useRef<SavedPlace[]>([]);
   const tokenRef = useRef<string | null>(token);
+  const socketRef = useRef<Socket | null>(null);
+  // Track which like/comment events we sent ourselves so we don't double-apply
+  const pendingLikeRef = useRef<Set<string>>(new Set());
+  const pendingCommentRef = useRef<Set<string>>(new Set());
 
   useEffect(() => { tokenRef.current = token; }, [token]);
   useEffect(() => { savedPlacesRef.current = savedPlaces; }, [savedPlaces]);
 
-  // Load posts on mount and poll every 30s so all users see live like/comment counts
+  // Initial fetch + real-time socket
   useEffect(() => {
-    const fetchPosts = () =>
-      getPosts()
-        .then((posts: any[]) => setSavedPlaces(posts.map(apiToPlace)))
-        .catch((err: any) => console.error('Failed to load posts:', err));
+    getPosts()
+      .then((posts: any[]) => setSavedPlaces(posts.map(apiToPlace)))
+      .catch((err: any) => console.error('Failed to load posts:', err));
 
-    fetchPosts();
-    const interval = setInterval(fetchPosts, 30000);
-    return () => clearInterval(interval);
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    socketRef.current = socket;
+
+    // Re-fetch all posts on reconnect to catch anything missed while offline
+    socket.on('connect', () => {
+      if (savedPlacesRef.current.length > 0) {
+        getPosts()
+          .then((posts: any[]) => setSavedPlaces(posts.map(apiToPlace)))
+          .catch(() => {});
+      }
+    });
+
+    socket.on('post:created', (post: any) => {
+      setSavedPlaces(prev => {
+        if (prev.find(p => p.id === post.id)) return prev; // already added optimistically
+        return [apiToPlace(post), ...prev];
+      });
+    });
+
+    socket.on('post:liked', ({ postId, likedBy }: { postId: string; likedBy: string[] }) => {
+      if (pendingLikeRef.current.has(postId)) return; // our own action, already handled optimistically
+      setSavedPlaces(prev => prev.map(p => p.id === postId ? { ...p, likedBy } : p));
+      const countEl = document.getElementById(`like-count-${postId}`);
+      if (countEl) countEl.textContent = String(likedBy.length);
+    });
+
+    socket.on('post:commented', ({ postId, comment }: { postId: string; comment: Comment }) => {
+      if (pendingCommentRef.current.has(postId)) return; // our own action, already handled optimistically
+      setSavedPlaces(prev => prev.map(p =>
+        p.id === postId ? { ...p, comments: [...p.comments, comment] } : p
+      ));
+    });
+
+    socket.on('post:viewed', ({ postId, views }: { postId: string; views: number }) => {
+      setSavedPlaces(prev => prev.map(p =>
+        p.id === postId ? { ...p, viewedBy: new Array(views).fill('') } : p
+      ));
+    });
+
+    socket.on('post:deleted', ({ postId }: { postId: string }) => {
+      setSavedPlaces(prev => prev.filter(p => p.id !== postId));
+    });
+
+    return () => { socket.disconnect(); socketRef.current = null; };
   }, []);
 
   const handleLike = async (placeId: string) => {
@@ -92,13 +140,15 @@ export const usePosts = ({
       ? (place?.likedBy ?? []).filter(id => id !== userId)
       : [...(place?.likedBy ?? []), userId];
 
-    // Optimistic update — React state + DOM span in map popup for like count
+    // Optimistic update
     setSavedPlaces(prev => prev.map(p =>
       p.id === placeId ? { ...p, likedBy: newLikedBy } : p
     ));
     const countEl = document.getElementById(`like-count-${placeId}`);
     if (countEl) countEl.textContent = String(newLikedBy.length);
 
+    // Suppress the socket echo for this action
+    pendingLikeRef.current.add(placeId);
     try {
       const data = await likePost(tokenRef.current, placeId);
       const finalLikedBy = Array.isArray(data.likedBy) ? data.likedBy : newLikedBy;
@@ -116,11 +166,12 @@ export const usePosts = ({
       }
     } catch (err) {
       console.error('Failed to sync like', err);
-      // Rollback
       setSavedPlaces(prev => prev.map(p =>
         p.id === placeId ? { ...p, likedBy: place?.likedBy ?? [] } : p
       ));
       if (countEl) countEl.textContent = String(place?.likedBy.length ?? 0);
+    } finally {
+      pendingLikeRef.current.delete(placeId);
     }
   };
 
@@ -136,14 +187,14 @@ export const usePosts = ({
       createdAt: new Date().toISOString(),
     };
 
-    // Optimistic update
     setSavedPlaces(prev => prev.map(p =>
       p.id === placeId ? { ...p, comments: [...p.comments, optimistic] } : p
     ));
 
+    pendingCommentRef.current.add(placeId);
     try {
       const saved = await addComment(tokenRef.current, placeId, text.trim());
-      // Replace temp comment with real server comment
+      // Replace temp comment with real one from server
       setSavedPlaces(prev => prev.map(p =>
         p.id === placeId
           ? { ...p, comments: p.comments.map(c => c.id === tempId ? { ...optimistic, id: saved.id ?? tempId } : c) }
@@ -158,10 +209,11 @@ export const usePosts = ({
       });
     } catch (err) {
       console.error('Failed to post comment', err);
-      // Rollback optimistic update on failure
       setSavedPlaces(prev => prev.map(p =>
         p.id === placeId ? { ...p, comments: p.comments.filter(c => c.id !== tempId) } : p
       ));
+    } finally {
+      pendingCommentRef.current.delete(placeId);
     }
   };
 
@@ -183,6 +235,7 @@ export const usePosts = ({
         lng: previewCoords.lng,
         images: formImages,
       });
+      // Add locally — socket 'post:created' will be ignored for this post (already in state)
       setSavedPlaces(prev => [apiToPlace(post), ...prev]);
       setFormAddress('');
       setFormDescription('');
@@ -219,6 +272,7 @@ export const usePosts = ({
     if (!tokenRef.current) return;
     try {
       await deletePost(tokenRef.current, placeId);
+      // socket 'post:deleted' will no-op since it's already removed
     } catch (err) {
       console.error('Failed to delete post:', err);
       const deleted = savedPlacesRef.current.find(p => p.id === placeId);
