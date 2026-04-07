@@ -29,28 +29,42 @@ interface UsePostsParams {
   setIsFormOpen: (v: boolean) => void;
 }
 
-const apiToPlace = (p: any): SavedPlace => ({
-  id: p.id,
-  userId: p.userId ?? p.user_id,
-  username: p.username,
-  avatar: p.avatar || null,
-  name: p.name || '',
-  description: p.description || '',
-  address: p.address || '',
-  lat: p.lat,
-  lng: p.lng,
-  images: Array.isArray(p.images) ? p.images : (typeof p.images === 'string' ? JSON.parse(p.images) : []),
-  likedBy: p.likedBy ?? p.liked_by ?? [],
-  comments: (p.comments || []).map((c: any) => ({
-    id: c.id,
-    userId: c.userId ?? c.user_id,
-    username: c.username,
-    text: c.text,
-    createdAt: c.createdAt ?? c.created_at,
-  })),
-  // viewedBy length is used as view count display; fill with DB views count
-  viewedBy: new Array(p.views || 0).fill(''),
-});
+const parseImages = (raw: any): string[] => {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw); } catch { return []; }
+  }
+  return [];
+};
+
+const apiToPlace = (p: any): SavedPlace => {
+  try {
+    return {
+      id: p.id,
+      userId: p.userId ?? p.user_id ?? '',
+      username: p.username ?? '',
+      avatar: p.avatar || null,
+      name: p.name || '',
+      description: p.description || '',
+      address: p.address || '',
+      lat: Number(p.lat) || 0,
+      lng: Number(p.lng) || 0,
+      images: parseImages(p.images),
+      likedBy: Array.isArray(p.likedBy) ? p.likedBy : Array.isArray(p.liked_by) ? p.liked_by : [],
+      comments: Array.isArray(p.comments) ? p.comments.map((c: any) => ({
+        id: c.id,
+        userId: c.userId ?? c.user_id ?? '',
+        username: c.username ?? '',
+        text: c.text ?? '',
+        createdAt: c.createdAt ?? c.created_at ?? '',
+      })) : [],
+      viewedBy: new Array(Math.max(0, Number(p.views) || 0)).fill(''),
+    };
+  } catch (e) {
+    console.error('apiToPlace failed for post', p?.id, e);
+    return null as any;
+  }
+};
 
 export const usePosts = ({
   user,
@@ -81,7 +95,7 @@ export const usePosts = ({
   // Initial fetch + real-time socket
   useEffect(() => {
     getPosts()
-      .then((posts: any[]) => setSavedPlaces(posts.map(apiToPlace)))
+      .then((posts: any[]) => setSavedPlaces(posts.map(apiToPlace).filter(Boolean)))
       .catch((err: any) => console.error('Failed to load posts:', err));
 
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
@@ -91,7 +105,8 @@ export const usePosts = ({
     socket.on('reconnect', () => {
       getPosts()
         .then((posts: any[]) => {
-          if (posts.length > 0) setSavedPlaces(posts.map(apiToPlace));
+          const mapped = posts.map(apiToPlace).filter(Boolean);
+          if (mapped.length > 0) setSavedPlaces(mapped);
         })
         .catch(() => {});
     });
