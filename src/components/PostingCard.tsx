@@ -1,4 +1,5 @@
 import React from 'react';
+import { CommentSection } from './Comment';
 
 export interface Comment {
   id: string;
@@ -101,13 +102,13 @@ export const PostingCard: React.FC<PostingCardProps> = ({
       className="fixed z-30 w-[320px] pointer-events-auto animate-in fade-in zoom-in-95 duration-200"
       style={{ left: cardPos.x, top: cardPos.y - 40, transform: 'translate(-50%, -100%)' }}
     >
-      <div className="bg-[#101010] rounded-2xl shadow-2xl overflow-hidden border border-white/10">
+      <div className="bg-[#101010] rounded-xl shadow-2xl overflow-hidden border border-white/10">
 
         {/* CARD BODY */}
-        <div className="flex p-3 gap-3">
+        <div className="flex p-1 gap-3 px-2">
 
           {/* LEFT COLUMN — button follow + thread line */}
-          <div className="flex flex-col items-center gap-2 w-11 flex-shrink-0">
+          <div className="flex flex-col items-center gap-2   flex-shrink-0">
             <button
               onClick={() => handleFollow(place.username || '')}
               className={`rounded-md text-[8px] font-semibold transition-all whitespace-nowrap ${
@@ -142,7 +143,7 @@ export const PostingCard: React.FC<PostingCardProps> = ({
                 </svg>
                 <span className="text-[#616161] text-[15px] ml-1">5h</span>
               </div>
-              <div className="relative ">
+              {/* <div className="relative ">
                 {avatarSrc ? (
                   <img
                     src={avatarSrc}
@@ -157,7 +158,7 @@ export const PostingCard: React.FC<PostingCardProps> = ({
                     <UserIcon size={20} />
                   </div>
                 )}
-              </div>
+              </div> */}
 
               
             </div>
@@ -221,58 +222,14 @@ export const PostingCard: React.FC<PostingCardProps> = ({
 
         {/* COMMENT SECTION */}
         {isCommenting && (
-          <div className="border-t border-white/[0.08] px-4 pt-2.5 pb-3">
-            {/* Comment list */}
-            <div className="max-h-[140px] overflow-y-auto mb-2 flex flex-col gap-2 no-scrollbar">
-              {place.comments.length === 0 ? (
-                <p className="text-white/25 text-xs text-center py-2">
-                  No comments yet. Be the first!
-                </p>
-              ) : (
-                place.comments.map(c => (
-                  <div key={c.id} className="flex gap-2.5 items-start">
-                    <div className="w-[30px] h-[30px] rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-                      <UserIcon size={15} />
-                    </div>
-                    <div className="flex-1">
-                      <span className="text-white font-semibold text-xs">{c.username} </span>
-                      <span className="text-white/70 text-xs">{c.text}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Input row */}
-            <div className="flex gap-2.5 items-center">
-              {profilePhoto ? (
-                <img src={profilePhoto} className="w-[30px] h-[30px] rounded-full object-cover flex-shrink-0" />
-              ) : (
-                <div className="w-[30px] h-[30px] rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-                  <UserIcon size={15} />
-                </div>
-              )}
-              <input
-                value={commentInput}
-                onChange={e => setCommentInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAddComment(place.id)}
-                placeholder="Add a comment..."
-                autoFocus
-                className="flex-1 bg-white/[0.06] border border-white/10 rounded-[10px] px-2.5 py-1.5 text-white text-xs placeholder:text-white/30 outline-none"
-              />
-              <button
-                onClick={() => handleAddComment(place.id)}
-                disabled={!commentInput.trim()}
-                className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition-colors ${
-                  commentInput.trim()
-                    ? 'bg-white text-black cursor-pointer'
-                    : 'bg-white/15 text-white/30 cursor-default'
-                }`}
-              >
-                Post
-              </button>
-            </div>
-          </div>
+          <CommentSection
+            comments={place.comments}
+            placeId={place.id}
+            commentInput={commentInput}
+            profilePhoto={profilePhoto}
+            setCommentInput={setCommentInput}
+            handleAddComment={handleAddComment}
+          />
         )}
       </div>
     </div>

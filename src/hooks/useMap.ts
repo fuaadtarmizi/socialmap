@@ -4,7 +4,6 @@ import { SavedPlace } from '../components/PostingCard';
 import { previewMarkerHtml, placeMarkerHtml } from '../components/Map';
 import { AuthUser } from './useAuth';
 
-// Replace with your Mapbox public token
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const MAPBOX_STYLE = 'mapbox://styles/mapbox/standard';
@@ -64,7 +63,6 @@ export const useMap = ({
 
   useEffect(() => { savedPlacesRef.current = savedPlaces; }, [savedPlaces]);
 
-  // Keep handler refs fresh to avoid stale closures in window handlers
   const handleLikeRef = useRef(handleLike);
   const onOpenCommentsRef = useRef(onOpenComments);
   useEffect(() => { handleLikeRef.current = handleLike; });
@@ -79,74 +77,73 @@ export const useMap = ({
   useEffect(() => {
     const mapContainer = document.getElementById('map');
     if (user && !mapRef.current && mapContainer) {
-      mapRef.current = new mapboxgl.Map({
+      const map = new mapboxgl.Map({
         container: mapContainer,
         style: MAPBOX_STYLE,
         center: [101.5556, 3.4083],
         zoom: 16,
         pitch: 30,
         bearing: 0,
-        minZoom: 10,
+        minZoom: 8,
         maxZoom: 18,
         attributionControl: false,
       });
-      setMapReady(true);
 
-      const updatePitch = () => {
-        const map = mapRef.current!
-        const zoom = map.getZoom()
-        const t = Math.max(0, Math.min(1, (zoom - 12) / (16 - 12)))
-        const pitch = 15 + 20 * t
+      mapRef.current = map;
 
-        map.easeTo({          
-          pitch,
-          duration: 1000,
-          easing: (t) => t
-        })
-      }
-
-      mapRef.current.on("zoomend", updatePitch)
-
-
-
-     
-
-      mapRef.current.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
-
-      // Map move listener — directly update card DOM position every frame (no React re-render lag)
-      mapRef.current.on('move', () => {
-        if (!pointedPlaceIdRef.current) return;
-        const place = savedPlacesRef.current.find(p => p.id === pointedPlaceIdRef.current);
-        if (place) {
-          const point = mapRef.current!.project([place.lng, place.lat]);
-          const rect = mapRef.current!.getCanvas().getBoundingClientRect();
-          const card = document.getElementById('floating-posting-card');
-          if (card) {
-            card.style.left = `${rect.left + point.x}px`;
-            card.style.top = `${rect.top + point.y - 40}px`;
-          }
+      let lastPitch = -1;
+      map.on('zoom', () => {
+        const zoom = map.getZoom();
+        const t = Math.max(0, Math.min(1, (zoom - 12) / (15 - 12)));
+        const pitch = Math.round(t * 40);
+        if (pitch !== lastPitch) {
+          lastPitch = pitch;
+          map.setPitch(pitch);
         }
       });
 
-      // Geolocation — wait for map style to load before flying
-      mapRef.current.once('load', () => {
+      map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+
+
+      
+      // Map move listener — update card position every frame
+      const canvas = map.getCanvas();
+      const rect = canvas.getBoundingClientRect();
+      map.on('move', () => {
+        if (!pointedPlaceIdRef.current) return;
+        const place = savedPlacesRef.current.find(p => p.id === pointedPlaceIdRef.current);
+        if (!place) return;
+        const point = map.project([place.lng, place.lat]);
+        const card = document.getElementById('floating-posting-card');
+        if (card) {
+          card.style.left = `${rect.left + point.x}px`;
+          card.style.top = `${rect.top + point.y - 40}px`;
+        }
+      });
+
+      // ✅ setMapReady INSIDE 'load' — ensures map is fully ready before markers render
+      map.once('load', () => {
+        setMapReady(true); // 👈 moved here from outside
+
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             (pos) => {
               const { latitude, longitude } = pos.coords;
               setLocation({ lat: latitude, lng: longitude });
-              mapRef.current!.flyTo({ 
-                center: [longitude, latitude], 
-                zoom: 16, 
-                pitch: 50, 
-                bearing: 0 
+              map.flyTo({
+                center: [longitude, latitude],
+                zoom: 16,
+                pitch: 60,
+                bearing: 0,
               });
+
               const userEl = document.createElement('div');
-              userEl.style.cssText = 'width:16px;height:16px;background:#3b82f6;border:2px solid white;border-radius:50%;box-shadow:0 0 0 4px rgba(59,130,246,0.3)';
+              userEl.style.cssText =
+                'width:16px;height:16px;background:#3b82f6;border:2px solid white;border-radius:50%;box-shadow:0 0 0 4px rgba(59,130,246,0.3)';
               new mapboxgl.Marker({ element: userEl })
                 .setLngLat([longitude, latitude])
                 .setPopup(new mapboxgl.Popup().setHTML('<p style="padding:4px;margin:0">Your Location</p>'))
-                .addTo(mapRef.current!);
+                .addTo(map);
             },
             (err) => console.warn('Geolocation denied', err)
           );
@@ -155,16 +152,14 @@ export const useMap = ({
     }
 
     return () => {
-      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
       setMapReady(false);
     };
   }, [user]);
 
-
-
-
-
-  
   // Update Preview Marker
   useEffect(() => {
     if (!mapRef.current) return;
@@ -190,7 +185,7 @@ export const useMap = ({
 
   // Update Saved Markers
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !mapReady) return; // ✅ guard with mapReady
     savedMarkersRef.current.forEach(m => m.remove());
     savedMarkersRef.current = [];
 
