@@ -99,10 +99,12 @@ export const usePosts = ({
 
     try {
       const data = await likePost(tokenRef.current, placeId);
-      // Sync with real server state
-      setSavedPlaces(prev => prev.map(p =>
-        p.id === placeId ? { ...p, likedBy: data.likedBy } : p
-      ));
+      // Sync with real server state only if server returns likedBy array
+      if (Array.isArray(data.likedBy)) {
+        setSavedPlaces(prev => prev.map(p =>
+          p.id === placeId ? { ...p, likedBy: data.likedBy } : p
+        ));
+      }
       if (!wasLiked) {
         pushActivity({
           type: 'like',
