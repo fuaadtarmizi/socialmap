@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getPosts, createPost, deletePost } from '../lib/api';
+import { getPosts, createPost, deletePost, addComment, likePost } from '../lib/api';
 import { SavedPlace, Comment } from '../components/PostingCard';
 import { AuthUser } from './useAuth';
 
@@ -70,84 +70,98 @@ export const usePosts = ({
   useEffect(() => { tokenRef.current = token; }, [token]);
   useEffect(() => { savedPlacesRef.current = savedPlaces; }, [savedPlaces]);
 
-  // Load posts on mount — getPosts is public, no auth required
+  // Load posts on mount and poll every 30s so all users see live like/comment counts
   useEffect(() => {
-    getPosts()
-      .then((posts: any[]) => setSavedPlaces(posts.map(apiToPlace)))
-      .catch((err: any) => console.error('Failed to load posts:', err));
+    const fetchPosts = () =>
+      getPosts()
+        .then((posts: any[]) => setSavedPlaces(posts.map(apiToPlace)))
+        .catch((err: any) => console.error('Failed to load posts:', err));
+
+    fetchPosts();
+    const interval = setInterval(fetchPosts, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleLike = async (placeId: string) => {
-    if (!user) return;
+    if (!user || !tokenRef.current) return;
     const userId = user.id;
 
-    let newLikedBy: string[] = [];
-    let wasLiked = false;
+    // Optimistic toggle
+    const place = savedPlacesRef.current.find(p => p.id === placeId);
+    const wasLiked = place?.likedBy.includes(userId) ?? false;
     setSavedPlaces(prev => prev.map(p => {
       if (p.id !== placeId) return p;
-      const idx = p.likedBy.indexOf(userId);
-      wasLiked = idx !== -1;
-      newLikedBy = idx === -1 ? [...p.likedBy, userId] : p.likedBy.filter(id => id !== userId);
-      return { ...p, likedBy: newLikedBy };
+      const likedBy = wasLiked
+        ? p.likedBy.filter(id => id !== userId)
+        : [...p.likedBy, userId];
+      return { ...p, likedBy };
     }));
-    if (!wasLiked) {
-      const place = savedPlacesRef.current.find(p => p.id === placeId);
-      const postOwner = place?.username || 'someone';
-      pushActivity({
-        type: 'like',
-        user: postOwner,
-        avatar: place?.avatar || null,
-        content: `liked "${place?.name || 'a post'}"`,
-      });
-    }
 
-    if (!tokenRef.current) return;
     try {
-      const res = await fetch(`/api/posts/${placeId}/like`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${tokenRef.current}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSavedPlaces(prev => prev.map(p =>
-          p.id === placeId ? { ...p, likedBy: data.likedBy } : p
-        ));
-        if (likeCountEl) likeCountEl.textContent = formatCount(data.likedBy.length);
-        if (likeIconEl) {
-          likeIconEl.setAttribute('fill', data.liked ? '#ff3366' : 'none');
-          likeIconEl.setAttribute('stroke', data.liked ? '#ff3366' : 'white');
-        }
+      const data = await likePost(tokenRef.current, placeId);
+      // Sync with real server state
+      setSavedPlaces(prev => prev.map(p =>
+        p.id === placeId ? { ...p, likedBy: data.likedBy } : p
+      ));
+      if (!wasLiked) {
+        pushActivity({
+          type: 'like',
+          user: place?.username || 'someone',
+          avatar: place?.avatar || null,
+          content: `liked "${place?.name || 'a post'}"`,
+        });
       }
-    } catch (err) { console.error("Failed to sync like", err); }
+    } catch (err) {
+      console.error('Failed to sync like', err);
+      // Rollback on failure
+      setSavedPlaces(prev => prev.map(p => {
+        if (p.id !== placeId) return p;
+        const likedBy = wasLiked
+          ? [...p.likedBy, userId]
+          : p.likedBy.filter(id => id !== userId);
+        return { ...p, likedBy };
+      }));
+    }
   };
 
   const handleAddComment = async (placeId: string, text: string) => {
-    if (!user || !text.trim()) return;
-    const newComment: Comment = {
-      id: Date.now().toString(),
+    if (!user || !text.trim() || !tokenRef.current) return;
+
+    const tempId = `temp_${Date.now()}`;
+    const optimistic: Comment = {
+      id: tempId,
       userId: user.id,
       username: user.username,
       text: text.trim(),
       createdAt: new Date().toISOString(),
     };
-    const commentedPlace = savedPlacesRef.current.find(p => p.id === placeId);
+
+    // Optimistic update
     setSavedPlaces(prev => prev.map(p =>
-      p.id === placeId ? { ...p, comments: [...p.comments, newComment] } : p
+      p.id === placeId ? { ...p, comments: [...p.comments, optimistic] } : p
     ));
-    pushActivity({
-      type: 'reply',
-      user: commentedPlace?.username || 'someone',
-      avatar: commentedPlace?.avatar || null,
-      content: `replied to "${commentedPlace?.name || 'a post'}": "${newComment.text}"`,
-    });
-    if (tokenRef.current) {
-      try {
-        await fetch(`/api/posts/${placeId}/comments`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenRef.current}` },
-          body: JSON.stringify({ text: newComment.text })
-        });
-      } catch (err) { console.error("Failed to sync comment", err); }
+
+    try {
+      const saved = await addComment(tokenRef.current, placeId, text.trim());
+      // Replace temp comment with real server comment
+      setSavedPlaces(prev => prev.map(p =>
+        p.id === placeId
+          ? { ...p, comments: p.comments.map(c => c.id === tempId ? { ...optimistic, id: saved.id ?? tempId } : c) }
+          : p
+      ));
+      const commentedPlace = savedPlacesRef.current.find(p => p.id === placeId);
+      pushActivity({
+        type: 'reply',
+        user: commentedPlace?.username || 'someone',
+        avatar: commentedPlace?.avatar || null,
+        content: `replied to "${commentedPlace?.name || 'a post'}": "${text.trim()}"`,
+      });
+    } catch (err) {
+      console.error('Failed to post comment', err);
+      // Rollback optimistic update on failure
+      setSavedPlaces(prev => prev.map(p =>
+        p.id === placeId ? { ...p, comments: p.comments.filter(c => c.id !== tempId) } : p
+      ));
     }
   };
 

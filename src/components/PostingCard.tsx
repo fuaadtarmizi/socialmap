@@ -1,5 +1,6 @@
 import React from 'react';
 import { CommentSection } from './Comment';
+import { LikeButton } from './Like';
 
 export interface Comment {
   id: string;
@@ -84,7 +85,6 @@ export const PostingCard: React.FC<PostingCardProps> = ({
   const mainImage = place.images.length > 0 ? place.images[0] : null;
   const isOwner = place.userId === user?.id;
   const avatarSrc = isOwner ? (profilePhoto || place.avatar) : place.avatar;
-  const isLiked = place.likedBy.includes(user?.id || '');
   const isCommenting = commentingOnPlace === place.id;
   const isFollowing = followingSet.has(place.username || '');
 
@@ -180,19 +180,12 @@ export const PostingCard: React.FC<PostingCardProps> = ({
             {/* Action row */}
             <div className="flex gap-4 mt-3 pb-1">
               {/* Like */}
-              <button
-                onClick={() => handleLike(place.id)}
-                className="flex items-center gap-1.5 text-[13px] text-[#f5f5f5]"
-              >
-                <svg viewBox="0 0 24 24" width="20" height="20"
-                  fill={isLiked ? '#ff3366' : 'none'}
-                  stroke={isLiked ? '#ff3366' : 'white'}
-                  strokeWidth="2"
-                >
-                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                </svg>
-                <span>{formatCount(place.likedBy.length)}</span>
-              </button>
+              <LikeButton
+                placeId={place.id}
+                likedBy={place.likedBy}
+                userId={user?.id || ''}
+                onLike={handleLike}
+              />
 
               {/* Comment */}
               <button
