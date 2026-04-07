@@ -86,25 +86,31 @@ export const usePosts = ({
     if (!user || !tokenRef.current) return;
     const userId = user.id;
 
-    // Optimistic toggle
     const place = savedPlacesRef.current.find(p => p.id === placeId);
     const wasLiked = place?.likedBy.includes(userId) ?? false;
-    setSavedPlaces(prev => prev.map(p => {
-      if (p.id !== placeId) return p;
-      const likedBy = wasLiked
-        ? p.likedBy.filter(id => id !== userId)
-        : [...p.likedBy, userId];
-      return { ...p, likedBy };
-    }));
+    const newLikedBy = wasLiked
+      ? (place?.likedBy ?? []).filter(id => id !== userId)
+      : [...(place?.likedBy ?? []), userId];
+
+    // Optimistic update — React state + DOM spans in map popup
+    setSavedPlaces(prev => prev.map(p =>
+      p.id === placeId ? { ...p, likedBy: newLikedBy } : p
+    ));
+    const countEl = document.getElementById(`like-count-${placeId}`);
+    const iconEl = document.getElementById(`like-icon-${placeId}`);
+    if (countEl) countEl.textContent = String(newLikedBy.length);
+    if (iconEl) {
+      iconEl.setAttribute('fill', wasLiked ? 'none' : '#ff3366');
+      iconEl.setAttribute('stroke', wasLiked ? 'white' : '#ff3366');
+    }
 
     try {
       const data = await likePost(tokenRef.current, placeId);
-      // Sync with real server state only if server returns likedBy array
-      if (Array.isArray(data.likedBy)) {
-        setSavedPlaces(prev => prev.map(p =>
-          p.id === placeId ? { ...p, likedBy: data.likedBy } : p
-        ));
-      }
+      const finalLikedBy = Array.isArray(data.likedBy) ? data.likedBy : newLikedBy;
+      setSavedPlaces(prev => prev.map(p =>
+        p.id === placeId ? { ...p, likedBy: finalLikedBy } : p
+      ));
+      if (countEl) countEl.textContent = String(finalLikedBy.length);
       if (!wasLiked) {
         pushActivity({
           type: 'like',
@@ -115,14 +121,15 @@ export const usePosts = ({
       }
     } catch (err) {
       console.error('Failed to sync like', err);
-      // Rollback on failure
-      setSavedPlaces(prev => prev.map(p => {
-        if (p.id !== placeId) return p;
-        const likedBy = wasLiked
-          ? [...p.likedBy, userId]
-          : p.likedBy.filter(id => id !== userId);
-        return { ...p, likedBy };
-      }));
+      // Rollback
+      setSavedPlaces(prev => prev.map(p =>
+        p.id === placeId ? { ...p, likedBy: place?.likedBy ?? [] } : p
+      ));
+      if (countEl) countEl.textContent = String(place?.likedBy.length ?? 0);
+      if (iconEl) {
+        iconEl.setAttribute('fill', wasLiked ? '#ff3366' : 'none');
+        iconEl.setAttribute('stroke', wasLiked ? '#ff3366' : 'white');
+      }
     }
   };
 
