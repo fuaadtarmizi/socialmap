@@ -12,7 +12,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onGoSignup }) => {
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const [email, setEmail] = useState(() => localStorage.getItem('lumina_saved_email') || '');
-  const [password, setPassword] = useState(() => localStorage.getItem('lumina_saved_password') || '');
+  const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem('lumina_saved_email'));
 
   if (showForgot) return <ForgotPassword onBack={() => setShowForgot(false)} />;
@@ -28,10 +28,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onGoSignup }) => {
       localStorage.setItem('lumina_user', JSON.stringify(user));
       if (rememberMe) {
         localStorage.setItem('lumina_saved_email', email);
-        localStorage.setItem('lumina_saved_password', password);
       } else {
         localStorage.removeItem('lumina_saved_email');
-        localStorage.removeItem('lumina_saved_password');
       }
       onLogin(user, token);
     } catch (err: any) {

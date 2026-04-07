@@ -92,17 +92,12 @@ export const usePosts = ({
       ? (place?.likedBy ?? []).filter(id => id !== userId)
       : [...(place?.likedBy ?? []), userId];
 
-    // Optimistic update — React state + DOM spans in map popup
+    // Optimistic update — React state + DOM span in map popup for like count
     setSavedPlaces(prev => prev.map(p =>
       p.id === placeId ? { ...p, likedBy: newLikedBy } : p
     ));
     const countEl = document.getElementById(`like-count-${placeId}`);
-    const iconEl = document.getElementById(`like-icon-${placeId}`);
     if (countEl) countEl.textContent = String(newLikedBy.length);
-    if (iconEl) {
-      iconEl.setAttribute('fill', wasLiked ? 'none' : '#ff3366');
-      iconEl.setAttribute('stroke', wasLiked ? 'white' : '#ff3366');
-    }
 
     try {
       const data = await likePost(tokenRef.current, placeId);
@@ -126,10 +121,6 @@ export const usePosts = ({
         p.id === placeId ? { ...p, likedBy: place?.likedBy ?? [] } : p
       ));
       if (countEl) countEl.textContent = String(place?.likedBy.length ?? 0);
-      if (iconEl) {
-        iconEl.setAttribute('fill', wasLiked ? '#ff3366' : 'none');
-        iconEl.setAttribute('stroke', wasLiked ? '#ff3366' : 'white');
-      }
     }
   };
 

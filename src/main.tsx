@@ -41,7 +41,6 @@ const App = () => {
   const [formAddress, setFormAddress] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formImages, setFormImages] = useState<string[]>([]);
-  const [username, setUsername] = useState('WanderlustLara');
   const [previewCoords, setPreviewCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('near');
@@ -257,7 +256,7 @@ const App = () => {
         )}
 
         {/* INBOX PAGE OVERLAY */}
-        {activeTab === 'inbox' && <Chat currentUsername={username} profilePhoto={profilePhoto} />}
+        {activeTab === 'inbox' && <Chat currentUsername={user.username} profilePhoto={profilePhoto} />}
 
         {/* PROFILE PAGE OVERLAY */}
         {activeTab === 'profile' && (
@@ -274,7 +273,7 @@ const App = () => {
             <Profile
               user={user}
               onLogout={() => { handleLogout(); setViewingProfile(null); }}
-              followerCount={userFollowers[user?.username || ''] ?? 74}
+              followerCount={userFollowers[user?.username || ''] ?? 0}
               savedPlaces={savedPlaces}
               onDeletePlace={handleDeletePlace}
               onPhotoChange={setProfilePhoto}
@@ -329,7 +328,7 @@ const App = () => {
                 formDescription={formDescription}
                 setFormDescription={setFormDescription}
                 formImages={formImages}
-                username={username}
+                username={user.username}
                 profilePhoto={profilePhoto}
                 handleLocate={handleLocate}
                 locating={locating}

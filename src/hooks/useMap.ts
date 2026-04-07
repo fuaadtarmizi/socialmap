@@ -73,6 +73,10 @@ export const useMap = ({
   useEffect(() => {
     (window as any).handleLikePost = (placeId: string) => handleLikeRef.current(placeId);
     (window as any).handleOpenComments = (placeId: string) => onOpenCommentsRef.current(placeId);
+    return () => {
+      delete (window as any).handleLikePost;
+      delete (window as any).handleOpenComments;
+    };
   }, []);
 
   // Initialize Map

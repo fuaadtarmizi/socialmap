@@ -61,6 +61,7 @@ export const useGeocoding = ({
       setFormAddress(title);
       handleLocateFromTitleRef.current(title);
     };
+    return () => { delete (window as any).handleAutoFill; };
   }, [setFormAddress]);
 
   return { locating, handleLocate, handleLocateFromTitle };
