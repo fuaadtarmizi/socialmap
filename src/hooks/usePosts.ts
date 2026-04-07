@@ -87,13 +87,13 @@ export const usePosts = ({
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socketRef.current = socket;
 
-    // Re-fetch all posts on reconnect to catch anything missed while offline
-    socket.on('connect', () => {
-      if (savedPlacesRef.current.length > 0) {
-        getPosts()
-          .then((posts: any[]) => setSavedPlaces(posts.map(apiToPlace)))
-          .catch(() => {});
-      }
+    // Re-fetch on reconnect (not first connect) to catch missed events while offline
+    socket.on('reconnect', () => {
+      getPosts()
+        .then((posts: any[]) => {
+          if (posts.length > 0) setSavedPlaces(posts.map(apiToPlace));
+        })
+        .catch(() => {});
     });
 
     socket.on('post:created', (post: any) => {
